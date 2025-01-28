@@ -1,0 +1,14 @@
+[project]
+name = "mese-git-support"
+version = "0.1.0"
+description = "Git support utilities for EcoStruxure Machine Expert"
+requires-python = ">=3.8"
+dependencies = [
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+git-support = "git_support:main" 

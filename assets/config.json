@@ -1,0 +1,8 @@
+[
+    {
+        "Name": "Git Support",
+        "Desc": "Git integration tools",
+        "Icon": "git.ico",
+        "Path": "git_support.py"
+    }
+]
