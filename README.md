@@ -9,35 +9,25 @@ This tool installs the CodeSys Bridge Script into SE Machine Expert installs and
    - Windows UAC prompt will appear for confirmation
 
 2. The installer will:
-   - Automatically detect all installed EcoStruxure Machine Expert V2.x versions
-   - Install the bridge script into each version's Script Commands directory
+   - Install into the CodeSys Script Commands directory
+   - Automatically detect all installed SE Machine Expert V2.x versions
+
    - Copy required assets (icons)
    - Create or update the configuration files
 
 ## What Gets Installed
 
-The installer adds the following to each detected V2.x installation:
+The installer adds the following to each installation:
 - `git.ico` - Icon file for the script command
 - Updates to `config.json` - Adds or updates the CodeSys Bridge Script entry
 - Reference to `codesys_bridge_script.py` - The main bridge script
 
-## Installation Locations
-
-The script installs to all detected versions at:
-
 ## Requirements
 
 - Windows operating system
-- Administrator privileges
-- EcoStruxure Machine Expert V2.x installed
+- Administrator privileges (for SE Machine Expert installations)
+- EcoStruxure Machine Expert V2.x and/or CodeSys 3.5.x installed
 
-## Troubleshooting
-
-If you encounter any errors during installation:
-1. Ensure you have administrator privileges
-2. Verify that EcoStruxure Machine Expert is installed
-3. Check the error message displayed by the installer
-4. Press Enter to exit if an error occurs
 
 ## Notes
 
