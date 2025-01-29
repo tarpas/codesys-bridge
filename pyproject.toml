@@ -1,7 +1,7 @@
 [project]
-name = "mese-git-support"
+name = "codesys-export"
 version = "0.1.0"
-description = "Git support utilities for EcoStruxure Machine Expert"
+description = "Export CodeSys and SE Machine Expert projects to text representation"
 requires-python = ">=3.10"
 dependencies = [
     "ruff>=0.9.3",
@@ -12,4 +12,4 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project.scripts]
-git-support = "git_support:main" 
+codesys-export = "codesys_text:main"
