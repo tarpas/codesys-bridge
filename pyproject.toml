@@ -2,7 +2,7 @@
 name = "mese-git-support"
 version = "0.1.0"
 description = "Git support utilities for EcoStruxure Machine Expert"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
     "ruff>=0.9.3",
 ]
