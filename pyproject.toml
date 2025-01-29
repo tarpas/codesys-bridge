@@ -1,7 +1,7 @@
 [project]
-name = "codesys-export"
+name = "codesys-bridge"
 version = "0.1.0"
-description = "Export CodeSys and SE Machine Expert projects to text representation"
+description = "Bridge utility for CodeSys and SE Machine Expert projects - text export and transformation, version control tools"
 requires-python = ">=3.10"
 dependencies = [
     "ruff>=0.9.3",
@@ -12,4 +12,4 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project.scripts]
-codesys-export = "codesys_text:main"
+codesys-bridge = "codesys_script_install:main"
