@@ -5,6 +5,7 @@ import os
 import shutil
 import time
 import subprocess
+import scriptengine # type: ignore
 
 """
 prop_method		= Guid('792f2eb6-721e-4e64-ba20-bc98351056db')
@@ -46,9 +47,13 @@ has_repo = False
 
 
 # Get project path and set save folder to st_source subdirectory
-project_path = projects.primary.path
+project_path = scriptengine.projects.primary.path
 parent_dir = os.path.dirname(os.path.dirname(project_path))  # Go up one more level
-save_folder = os.path.join(parent_dir, os.path.splitext(os.path.basename(project_path))[0]+"_git", 'st_source')
+save_folder = os.path.join(
+    parent_dir,
+    os.path.splitext(os.path.basename(project_path))[0] + "_git",
+    "st_source",
+)
 
 if not os.path.exists(save_folder):
     os.makedirs(save_folder)
@@ -181,11 +186,11 @@ def print_tree(treeobj, depth, path):
 
     if treeobj.is_task:
         exports = [treeobj]
-        projects.primary.export_native(exports, os.path.join(curpath, name + ".task"))
+        scriptengine.projects.primary.export_native(exports, os.path.join(curpath, name + ".task"))
 
     if treeobj.is_libman:
         exports = [treeobj]
-        projects.primary.export_native(exports, os.path.join(curpath, name + ".lib"))
+        scriptengine.projects.primary.export_native(exports, os.path.join(curpath, name + ".lib"))
 
     if treeobj.is_textlist:
         treeobj.export(os.path.join(curpath, name + ".tl"))
@@ -208,7 +213,7 @@ def print_tree(treeobj, depth, path):
         print_tree(child, depth + 1, curpath)
 
 
-for obj in projects.primary.get_children():
+for obj in scriptengine.projects.primary.get_children():
     print_tree(obj, 0, save_folder)
 
 with open(os.path.join(save_folder, "s.txt"), "w") as f:
