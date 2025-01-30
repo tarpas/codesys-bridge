@@ -106,13 +106,11 @@ def get_mtype(a):
 """
 
 
-def print_tree(treeobj, depth, path):
+def print_tree(treeobj, depth, curpath):
     global info
-    # record current Path
-    curpath = path
     isfolder = False
 
-    t = ""  # text
+    text_to_save = ""  # text
     tp = ""  # type
 
     # get object name
@@ -126,7 +124,7 @@ def print_tree(treeobj, depth, path):
 
     if treeobj.is_device:
         deviceid = treeobj.get_device_identification()
-        t = (
+        text_to_save = (
             "type="
             + str(deviceid.type)
             + "\nid="
@@ -144,17 +142,17 @@ def print_tree(treeobj, depth, path):
         pass
 
     if treeobj.has_textual_declaration:
-        t = t + "(*#-#-#-#-#-#-#-#-#-#---" + tp + " Declaration---#-#-#-#-#-#-#-#-#-#-#-#-#*)\r\n"
+        text_to_save = text_to_save + "(*#-#-#-#-#-#-#-#-#-#---" + tp + " Declaration---#-#-#-#-#-#-#-#-#-#-#-#-#*)\r\n"
         a = treeobj.textual_declaration
-        t = t + a.text
+        text_to_save = text_to_save + a.text
 
     if treeobj.has_textual_implementation:
-        t = (
-            t
+        text_to_save = (
+            text_to_save
             + "(*#-#-#-#-#-#-#-#-#-#---" + tp + " Implementation---#-#-#-#-#-#-#-#-#-#-#-#-#*)\r\n"
         )
         a = treeobj.textual_implementation
-        t = t + a.text
+        text_to_save = text_to_save + a.text
 
     """	
 	if treeobj.is_task_configuration:
@@ -185,8 +183,8 @@ def print_tree(treeobj, depth, path):
         if not os.path.exists(curpath):
             os.makedirs(curpath)
 
-    if t:
-        save(t, curpath, name, tp)
+    if text_to_save:
+        save(text_to_save, curpath, name, tp)
 
     for child in treeobj.get_children(False):
         print_tree(child, depth + 1, curpath)
