@@ -3,13 +3,27 @@ name = "codesys-bridge"
 version = "0.1.0"
 description = "Bridge utility for CodeSys and SE Machine Expert projects - text export and transformation, version control tools"
 requires-python = ">=3.10"
-dependencies = [
-    "ruff>=0.9.3",
-]
+dependencies = []
 
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+codesys_bridge = ["assets/*.ico"]
+
+[dependency-groups]
+dev = [
+    "pillow>=11.1.0",
+    "ruff>=0.9.3",
+]
+
 [project.scripts]
-codesys-bridge = "codesys_script_install:main"
+codesys-bridge = "codesys_bridge.codesys_script_install:main"

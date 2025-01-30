@@ -19,7 +19,7 @@ def get_installation_directories():
     codesys_base = os.path.join(os.environ.get('PROGRAMFILES', 'C:\\Program Files'), 'CODESYS 3.5')
     codesys_dirs = glob.glob(os.path.join(os.path.dirname(codesys_base), 'CODESYS 3.5.*'))
     for codesys_dir in codesys_dirs:
-        directories.append(os.path.join(codesys_dir, 'Script Commands'))
+        directories.append(os.path.join(codesys_dir, 'CODESYS', 'Script Commands'))
     
     # Get SE Machine Expert directories
     se_base_dir = os.path.join(
@@ -42,10 +42,9 @@ def install_to_directory(path, git_support_entry):
     
     # Copy icon
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    icon_path = os.path.join(current_dir, 'assets', 'git.ico')
-    if os.path.exists(icon_path):
-        shutil.copy2(icon_path, os.path.join(path, 'git.ico'))
-        print(f"Copied git.ico to {path}")
+    icon_path = os.path.join(current_dir, 'assets', 'export_icon.ico')
+    shutil.copy2(icon_path, os.path.join(path, 'export_icon.ico'))
+    print(f"Copied export_icon.ico to {path}")
     
     # Update or create config.json
     config_dest = os.path.join(path, 'config.json')
@@ -77,7 +76,7 @@ def copy_to_script_commands():
     git_support_entry = {
         "Name": "CodeSys Bridge Script",
         "Desc": "CodeSys Bridge Script",
-        "Icon": "git.ico",
+        "Icon": "export_icon.ico",
         "Path": os.path.abspath(os.path.join(current_dir, 'codesys_bridge_script.py'))
     }
     
@@ -94,16 +93,28 @@ def copy_to_script_commands():
 
 def main():
     if not is_admin():
-        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
-        return
+        # ShellExecuteW returns an HINSTANCE (int) > 32 if successful
+        result = ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.argv[0], " ".join(sys.argv), None, 1)
+        if result <= 32:  # Error codes are <= 32
+            error_messages = {
+                2: "File not found",
+                5: "Access denied",
+            }
+            error_msg = error_messages.get(result, f"Ereror code ({result})")
+            print(f"Failed to run {sys.argv[0]}: {error_msg}")
+            sys.exit(1)
+        sys.exit(0)
     
     try:
         copy_to_script_commands()
         print("Successfully installed script commands and assets")
     except Exception as e:
+        import traceback
         print(f"Error during installation: {e}")
-    
-    input("Press Enter to exit...")
+        traceback.print_exc()
+        
+        input("Press Enter to exit...")
+
 
 if __name__ == "__main__":
     main() 
