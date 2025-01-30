@@ -33,7 +33,7 @@ def get_installation_directories():
     
     return directories
 
-def install_to_directory(path, git_support_entry):
+def install_to_directory(path, config_entry, is_codesys=False):
     """Install config and assets to a single directory"""
     print(f"\nInstalling to: {path}")
     
@@ -46,6 +46,16 @@ def install_to_directory(path, git_support_entry):
     shutil.copy2(icon_path, os.path.join(path, 'export_icon.ico'))
     print(f"Copied export_icon.ico to {path}")
     
+    # For CODESYS, copy the script file to the destination
+    script_path = os.path.join(current_dir, 'codesys_bridge_script.py')
+    if is_codesys:
+        shutil.copy2(script_path, os.path.join(path, 'codesys_bridge_script.py'))
+        print(f"Copied codesys_bridge_script.py to {path}")
+        config_entry["Path"] = 'codesys_bridge_script.py'  # Just the filename for CODESYS
+    else:
+        # For Machine Expert, use the original script location
+        config_entry["Path"] = script_path
+    
     # Update or create config.json
     config_dest = os.path.join(path, 'config.json')
     if os.path.exists(config_dest):
@@ -55,14 +65,14 @@ def install_to_directory(path, git_support_entry):
         # Update or add Git Support entry
         for i, entry in enumerate(config):
             if entry.get('Name') == "CodeSys Bridge Script":
-                config[i] = git_support_entry
+                config[i] = config_entry
                 print(f"Updated existing CodeSys Bridge Script entry in config.json")
                 break
         else:
-            config.append(git_support_entry)
+            config.append(config_entry)
             print(f"Added CodeSys Bridge Script entry to config.json")
     else:
-        config = [git_support_entry]
+        config = [config_entry]
         print(f"Created new config.json with CodeSys Bridge Script entry")
     
     with open(config_dest, 'w') as f:
@@ -77,7 +87,7 @@ def copy_to_script_commands():
         "Name": "CodeSys Bridge Script",
         "Desc": "CodeSys Bridge Script",
         "Icon": "export_icon.ico",
-        "Path": os.path.abspath(os.path.join(current_dir, 'codesys_bridge_script.py'))
+        "Path": ""  # Will be set in install_to_directory
     }
     
     # Get all installation directories
@@ -89,7 +99,9 @@ def copy_to_script_commands():
     
     # Install to each directory
     for directory in directories:
-        install_to_directory(directory, git_support_entry)
+        # Check if this is a CODESYS directory
+        is_codesys = 'CODESYS' in directory
+        install_to_directory(directory, git_support_entry.copy(), is_codesys)
 
 def main():
     if not is_admin():

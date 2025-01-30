@@ -212,4 +212,4 @@ with open(os.path.join(save_folder, "s.txt"), "w") as f:
 # 	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" add .', startupinfo=si)
 
 # 	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" commit -m "'+time.strftime('%Y-%m-%d %H:%M',time.localtime(time.time()))+'"', startupinfo=si)
-print("Export OK.")
+print("Export to {0} finished.".format(save_folder))
