@@ -142,14 +142,14 @@ def print_tree(treeobj, depth, curpath):
         pass
 
     if treeobj.has_textual_declaration:
-        text_to_save = text_to_save + "(*#-#-#-#-#-#-#-#-#-#---Declaration---#-#-#-#-#-#-#-#-#-#-#-#-#*)\r\n"
+        text_to_save = text_to_save + "(*#-#-#-#-#-#-#-#-#-#--- " + tp + " Declaration---#-#-#-#-#-#-#-#-#-#-#-#-#*)\r\n"
         a = treeobj.textual_declaration
         text_to_save = text_to_save + a.text
 
     if treeobj.has_textual_implementation:
         text_to_save = (
             text_to_save
-            + "(*#-#-#-#-#-#-#-#-#-#---Implementation---#-#-#-#-#-#-#-#-#-#-#-#-#*)\r\n"
+            + "(*#-#-#-#-#-#-#-#-#-#--- " + tp + " Implementation---#-#-#-#-#-#-#-#-#-#-#-#-#*)\r\n"
         )
         a = treeobj.textual_implementation
         text_to_save = text_to_save + a.text
