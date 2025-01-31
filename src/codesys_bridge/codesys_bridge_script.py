@@ -108,7 +108,6 @@ def get_mtype(a):
 
 def print_tree(treeobj, depth, curpath):
     global info
-    isfolder = False
 
     text_to_save = ""  # text
     tp = ""  # type
@@ -133,13 +132,6 @@ def print_tree(treeobj, depth, curpath):
             + str(deviceid.version)
         )
 
-    try:
-        if treeobj.is_folder:
-            # system.ui.prompt('folder:'+u, PromptChoice.YesNo, PromptResult.Yes)
-            isfolder = true
-            pass
-    except:
-        pass
 
     if treeobj.has_textual_declaration:
         text_to_save = text_to_save + "(*#-#-#-#-#-#-#-#-#-#--- " + tp + " Declaration---#-#-#-#-#-#-#-#-#-#-#-#-#*)\r\n"
@@ -174,7 +166,7 @@ def print_tree(treeobj, depth, curpath):
 
     children = treeobj.get_children(False)
 
-    if children or isfolder:
+    if children:
         if tp:
             curpath = os.path.join(curpath, name + "." + tp)
         else:
