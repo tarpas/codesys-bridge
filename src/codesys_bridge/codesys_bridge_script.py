@@ -56,18 +56,18 @@ type_dist = {
     "f8a58466-d7f6-439f-bbb8-d4600e41d099": "m",  # method with ret
     "261bd6e6-249c-4232-bb6f-84c2fbeef430": "gvl",  # gvl_Persistent
     "98a2708a-9b18-4f31-82ed-a1465b24fa2d": "task",
-    "8753fe6f-4a22-4320-8103-e553c4fc8e04": "ps",   # Project Settings
-    "40b404f9-e5dc-42c6-907f-c89f4a517386": "pl",   # PLC Logic
-    "639b491f-5557-464c-af91-1471bac9f549": "app",  # Application
-    "413e2a7d-adb1-4d2c-be29-6ae6e4fab820": "tpou", # Task POU
-    "f18bec89-9fef-401d-9953-2f11739a6808": "vis",  # Visualization
-    "4d3fdb8f-ab50-4c35-9d3a-d4bb9bb9a628": "vm",   # Visualization Manager
-    "bc63f5fa-d286-4786-994e-7b27e4f97bd5": "tv",   # Target Visualization
-    "0fdbf158-1ae0-47d9-9269-cd84be308e9d": "wv",   # Web Visualization
-    "8e687a04-7ca7-42d3-be06-fcbda676c5ef": "vs",   # Visualization Style
-    "bb0b9044-714e-4614-ad3e-33cbdf34d16b": "ip",   # Image Pool
-    "085afe48-c5d8-4ea5-ab0d-b35701fa6009": "pi",   # Project Information
-    "e9159722-55bc-49e5-8034-fbd278ef718f": "smap", # SoftMotion General Axis Pool
+    # "8753fe6f-4a22-4320-8103-e553c4fc8e04": "ps",   # Project Settings
+    # "40b404f9-e5dc-42c6-907f-c89f4a517386": "pl",   # PLC Logic
+    # "639b491f-5557-464c-af91-1471bac9f549": "app",  # Application
+    # "413e2a7d-adb1-4d2c-be29-6ae6e4fab820": "tpou", # Task POU
+    # "f18bec89-9fef-401d-9953-2f11739a6808": "vis",  # Visualization
+    # "4d3fdb8f-ab50-4c35-9d3a-d4bb9bb9a628": "vm",   # Visualization Manager
+    # "bc63f5fa-d286-4786-994e-7b27e4f97bd5": "tv",   # Target Visualization
+    # "0fdbf158-1ae0-47d9-9269-cd84be308e9d": "wv",   # Web Visualization
+    # "8e687a04-7ca7-42d3-be06-fcbda676c5ef": "vs",   # Visualization Style
+    # "bb0b9044-714e-4614-ad3e-33cbdf34d16b": "ip",   # Image Pool
+    # "085afe48-c5d8-4ea5-ab0d-b35701fa6009": "pi",   # Project Information
+    # "e9159722-55bc-49e5-8034-fbd278ef718f": "smap", # SoftMotion General Axis Pool
 }
 
 
@@ -142,14 +142,14 @@ def print_tree(treeobj, depth, curpath):
         pass
 
     if treeobj.has_textual_declaration:
-        text_to_save = text_to_save + "(*#-#-#-#-#-#-#-#-#-#---" + tp + " Declaration---#-#-#-#-#-#-#-#-#-#-#-#-#*)\r\n"
+        text_to_save = text_to_save + "(*#-#-#-#-#-#-#-#-#-#---Declaration---#-#-#-#-#-#-#-#-#-#-#-#-#*)\r\n"
         a = treeobj.textual_declaration
         text_to_save = text_to_save + a.text
 
     if treeobj.has_textual_implementation:
         text_to_save = (
             text_to_save
-            + "(*#-#-#-#-#-#-#-#-#-#---" + tp + " Implementation---#-#-#-#-#-#-#-#-#-#-#-#-#*)\r\n"
+            + "(*#-#-#-#-#-#-#-#-#-#---Implementation---#-#-#-#-#-#-#-#-#-#-#-#-#*)\r\n"
         )
         a = treeobj.textual_implementation
         text_to_save = text_to_save + a.text
