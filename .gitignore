@@ -4,3 +4,4 @@ dist
 build
 *.pyc
 .idea
+src/scriptengine
