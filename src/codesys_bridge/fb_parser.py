@@ -77,7 +77,7 @@ def parse_function_block(text):
         if next_line_match:
             impl_start = last_end_var + next_line_match.start()
             fb_declaration = fb_text[:last_end_var]
-            fb_implementation = fb_text[impl_start:].rstrip()
+            fb_implementation = fb_text[impl_start:]  # Removed rstrip()
         else:
             fb_declaration = fb_text
             fb_implementation = ""
@@ -89,19 +89,36 @@ def parse_function_block(text):
     # Find all methods
     methods = []
     method_pattern = r'METHOD\s+(?P<name>\w+)(?P<declaration>\s*:\s*\w+(?:\s*\([^)]*\))?.*?END_VAR)(?P<implementation>.*?)END_METHOD'
-    for m in re.finditer(method_pattern, text, re.DOTALL | re.IGNORECASE):
+    for m in re.finditer(method_pattern, parsing_text, re.DOTALL | re.IGNORECASE):  # Use parsing_text instead of text
         name = m.group('name')
-        # Include METHOD keyword and name in declaration
-        declaration = ('METHOD ' + name + m.group('declaration')).strip()
-        implementation = m.group('implementation').strip()
+        # Get the original text for the content using the positions
+        start_pos = m.start()
+        end_pos = m.end()
+        original_method_text = text[start_pos:end_pos]
+        
+        # Find the END_VAR position in the original text
+        end_var_match = re.search(r'END_VAR', original_method_text, re.IGNORECASE)
+        if end_var_match:
+            declaration = original_method_text[:end_var_match.end()]
+            implementation = original_method_text[end_var_match.end():-10]  # -10 to remove END_METHOD
+        else:
+            declaration = 'METHOD ' + name + m.group('declaration')
+            implementation = original_method_text[:-10]  # -10 to remove END_METHOD
+        
         methods.append(Method(name, declaration, implementation))
     
     # Find all actions
     actions = []
     action_pattern = r'ACTION\s+(?P<name>\w+)\s*(?P<implementation>.*?)END_ACTION'
-    for a in re.finditer(action_pattern, text, re.DOTALL | re.IGNORECASE):
+    for a in re.finditer(action_pattern, parsing_text, re.DOTALL | re.IGNORECASE):  # Use parsing_text instead of text
         name = a.group('name')
-        implementation = a.group('implementation').strip()
+        # Get the original text for the content using the positions
+        start_pos = a.start()
+        end_pos = a.end()
+        original_action_text = text[start_pos:end_pos]
+        
+        # Remove ACTION and END_ACTION
+        implementation = original_action_text[original_action_text.find(name) + len(name):-10]  # -10 to remove END_ACTION
         actions.append(Action(name, implementation))
     
     return FunctionBlock(fb_name, fb_declaration, fb_implementation, methods, actions)
@@ -109,37 +126,40 @@ def parse_function_block(text):
 # Example usage
 if __name__ == '__main__':
     sample = """
-    (* Header comment for the function block
-    FUNCTION_BLOCK Somethings *)
-    FUNCTION_BLOCK FB_Motor
+(* Header comment for the function block
+FUNCTION_BLOCK Somethings *)
+FUNCTION_BLOCK FB_Motor
+    VAR_INPUT
+        Speed : REAL; // Speed setpoint
+        Enable : BOOL; (* Enable motor *)
+        Message : STRING := 'FUNCTION_BLOCK FB_Fake'; // This string should not fool the parser
+        Text : STRING := "METHOD BadMethod END_METHOD"; // This string should not fool the parser
+    END_VAR
+    
+    VAR
+        CurrentSpeed : REAL;
+    END_VAR
+    
+    // Implementation starts here
+    IF Enable THEN
+        CurrentSpeed := Speed;
+        Message := 'ACTION BadAction END_ACTION';  // This string should not fool the parser
+    END_IF
+    
+    METHOD Start : BOOL
         VAR_INPUT
-            Speed : REAL; // Speed setpoint
-            Enable : BOOL; (* Enable motor *)
+            InitialSpeed : REAL;
         END_VAR
         
-        VAR
-            CurrentSpeed : REAL;
-        END_VAR
-        
-        // Implementation starts here
-        IF Enable THEN
-            CurrentSpeed := Speed;
-        END_IF
-        
-        METHOD Start : BOOL
-            VAR_INPUT
-                InitialSpeed : REAL;
-            END_VAR
-            
-            Speed := InitialSpeed;
-            Start := TRUE;
-        END_METHOD
-        
-        ACTION Stop
-            Speed := 0;
-            Enable := FALSE;
-        END_ACTION
-    END_FUNCTION_BLOCK
+        Speed := InitialSpeed;
+        Start := TRUE;
+    END_METHOD
+    
+    ACTION Stop
+        Speed := 0;
+        Enable := FALSE;
+    END_ACTION
+END_FUNCTION_BLOCK
     """
     
     try:
