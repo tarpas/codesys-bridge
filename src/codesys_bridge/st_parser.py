@@ -27,17 +27,20 @@ def remove_comments_and_strings_for_parsing(text):
     Temporarily removes comments and string literals for parsing purposes while preserving whitespace.
     Uses regex substitution for efficiency.
     """
-    # First replace string literals with spaces
-    text = re.sub(r'"[^"]*"', lambda m: ' ' * len(m.group(0)), text)
-    text = re.sub(r"'[^']*'", lambda m: ' ' * len(m.group(0)), text)
+    # Create a copy of the text for parsing
+    parsing_text = text
     
-    # Then replace (* *) style comments
-    text = re.sub(r'\(\*.*?\*\)', lambda m: ' ' * len(m.group(0)), text, flags=re.DOTALL)
+    # Replace string literals with spaces
+    parsing_text = re.sub(r'"[^"]*"', lambda m: ' ' * len(m.group(0)), parsing_text)
+    parsing_text = re.sub(r"'[^']*'", lambda m: ' ' * len(m.group(0)), parsing_text)
     
-    # Finally replace // style comments
-    text = re.sub(r'//.*$', lambda m: ' ' * len(m.group(0)), text, flags=re.MULTILINE)
+    # Replace (* *) style comments
+    parsing_text = re.sub(r'\(\*.*?\*\)', lambda m: ' ' * len(m.group(0)), parsing_text, flags=re.DOTALL)
     
-    return text
+    # Replace // style comments
+    parsing_text = re.sub(r'//.*$', lambda m: ' ' * len(m.group(0)), parsing_text, flags=re.MULTILINE)
+    
+    return parsing_text
 
 def find_element_boundaries(parsing_text, element_type):
     """Find the start and end of an IEC element in the text."""
@@ -46,8 +49,10 @@ def find_element_boundaries(parsing_text, element_type):
         'function': (r'\bFUNCTION\s+(?P<name>\w+)', r'END_FUNCTION'),
         'interface': (r'\bINTERFACE\s+(?P<name>\w+)', r'END_INTERFACE'),
         'struct': (r'\bTYPE\s+(?P<name>\w+)\s*:\s*STRUCT\b', r'END_STRUCT'),
+        'union': (r'\bTYPE\s+(?P<name>\w+)\s*:\s*UNION\b', r'END_UNION'),
         'enum': (r'\bTYPE\s+(?P<name>\w+)\s*:\s*\(\s*\w+\s*:=\s*\d+', r'END_TYPE'),
         'program': (r'\bPROGRAM\s+(?P<name>\w+)', r'END_PROGRAM'),
+        'gvl': (r'\bVAR_GLOBAL\s+(?P<name>\w+)', r'END_VAR'),
     }
     
     start_pattern, end_keyword = patterns[element_type]
@@ -77,7 +82,7 @@ def parse_var_sections(text):
 def parse_methods(text, parsing_text):
     """Parse all methods in the text."""
     methods = []
-    method_pattern = r'METHOD\s+(?P<name>\w+)(?P<declaration>\s*:\s*\w+(?:\s*\([^)]*\))?.*?END_VAR)(?P<implementation>.*?)END_METHOD'
+    method_pattern = r'\bMETHOD\s+(?P<name>\w+).*?END_METHOD\b'
     
     for m in re.finditer(method_pattern, parsing_text, re.DOTALL | re.IGNORECASE):
         name = m.group('name')
@@ -85,13 +90,20 @@ def parse_methods(text, parsing_text):
         end_pos = m.end()
         original_method_text = text[start_pos:end_pos]
         
-        end_var_match = re.search(r'END_VAR', original_method_text, re.IGNORECASE)
-        if end_var_match:
-            declaration = original_method_text[:end_var_match.end()]
-            implementation = original_method_text[end_var_match.end():-10]
+        # Find the split between declaration and implementation
+        var_end = parse_var_sections(original_method_text)
+        if var_end:
+            declaration = original_method_text[:var_end]
+            implementation = original_method_text[var_end:].rstrip()
         else:
-            declaration = 'METHOD ' + name + m.group('declaration')
-            implementation = original_method_text[:-10]
+            # No VAR sections, split at first newline
+            first_newline = original_method_text.find('\n')
+            if first_newline >= 0:
+                declaration = original_method_text[:first_newline]
+                implementation = original_method_text[first_newline:].rstrip()
+            else:
+                declaration = original_method_text
+                implementation = ""
         
         methods.append(Method(name, declaration, implementation))
     
@@ -118,7 +130,7 @@ def parse_iec_element(text, expected_type=None):
     
     Args:
         text (str): The complete text of the *.iecst file
-        expected_type (str, optional): Expected type ('fb', 'function', etc.)
+        expected_type (str, optional): Expected type ('fb', 'function', etc.')
         
     Returns:
         IECElement: The parsed element
@@ -128,7 +140,7 @@ def parse_iec_element(text, expected_type=None):
     
     # Try to determine the type if not specified
     if not expected_type:
-        for type_name in ['fb', 'function', 'interface', 'struct', 'enum', 'program']:
+        for type_name in ['fb', 'function', 'interface', 'struct', 'union', 'enum', 'program', 'gvl']:
             name, start, end = find_element_boundaries(parsing_text, type_name)
             if name:
                 expected_type = type_name
@@ -142,134 +154,53 @@ def parse_iec_element(text, expected_type=None):
         raise ValueError("No {} found in text".format(expected_type.upper()))
     
     # Get the original text content
-    element_text = text[0:end_pos]
+    element_text = text[:end_pos]
+    element_parsing_text = parsing_text[start_pos:end_pos]
+    
+    # Initialize methods and actions
+    methods = []
+    actions = []
     
     # Split declaration and implementation
     if expected_type in ['fb', 'function', 'interface', 'program']:
         # These types can have VAR sections
-        last_end_var = parse_var_sections(element_text)
+        last_end_var = parse_var_sections(element_text[start_pos:])
         if last_end_var is not None:
-            next_line_match = re.search(r'\n\s*', element_text[last_end_var:])
-            if next_line_match:
-                impl_start = last_end_var + next_line_match.start()
-                declaration = element_text[:last_end_var]
+            declaration = element_text[:start_pos + last_end_var]
+            
+            # For function blocks and interfaces, find all methods and actions first
+            if expected_type in ['fb', 'interface']:
+                methods = parse_methods(element_text[start_pos + last_end_var:], element_parsing_text[last_end_var:])
+            if expected_type == 'fb':
+                actions = parse_actions(element_text[start_pos + last_end_var:], element_parsing_text[last_end_var:])
+            
+            # Find the last METHOD or ACTION
+            last_method_end = 0
+            for method in methods:
+                method_end = element_text[start_pos + last_end_var:].find('END_METHOD', method.declaration.find('METHOD')) + 10
+                last_method_end = max(last_method_end, method_end)
+            
+            last_action_end = 0
+            for action in actions:
+                action_end = element_text[start_pos + last_end_var:].find('END_ACTION', element_text[start_pos + last_end_var:].find('ACTION ' + action.name)) + 10
+                last_action_end = max(last_action_end, action_end)
+            
+            # Implementation starts after the last method or action
+            impl_start = start_pos + last_end_var + max(last_method_end, last_action_end)
+            
+            # Find the next non-whitespace after the last method/action
+            next_content = re.search(r'\S', element_text[impl_start:])
+            if next_content:
+                impl_start += next_content.start()
                 implementation = element_text[impl_start:]
             else:
-                declaration = element_text
                 implementation = ""
         else:
             declaration = element_text
             implementation = ""
     else:
-        # For struct and enum, everything is declaration
+        # For struct, union, enum, and gvl everything is declaration
         declaration = element_text
         implementation = ""
     
-    # Parse methods and actions if applicable
-    methods = []
-    actions = []
-    if expected_type in ['fb', 'interface']:
-        methods = parse_methods(text, parsing_text)
-    if expected_type == 'fb':
-        actions = parse_actions(text, parsing_text)
-    
-    return IECElement(name, expected_type, declaration, implementation, methods, actions)
-
-# Example usage
-if __name__ == '__main__':
-    samples = {
-        'fb': """
-    (* Function Block Example *)
-    FUNCTION_BLOCK FB_Motor
-        VAR_INPUT
-            Speed : REAL; // Speed setpoint
-            Enable : BOOL; (* Enable motor *)
-        END_VAR
-        
-        IF Enable THEN
-            Speed := 10.0;
-        END_IF
-        
-        METHOD Start : BOOL
-            VAR_INPUT
-                InitialSpeed : REAL;
-            END_VAR
-            Speed := InitialSpeed;
-        END_METHOD
-        
-        ACTION Stop
-            Speed := 0;
-        END_ACTION
-    END_FUNCTION_BLOCK
-    """,
-        'interface': """
-    INTERFACE IController
-        METHOD Start : BOOL
-            VAR_INPUT
-                Speed : REAL;
-            END_VAR
-        
-        METHOD Stop : BOOL
-    END_INTERFACE
-    """,
-        'function': """
-    FUNCTION Add : INT
-        VAR_INPUT
-            a : INT;
-            b : INT;
-        END_VAR
-        
-        Add := a + b;
-    END_FUNCTION
-    """,
-        'struct': """
-    TYPE ST_Point :
-    STRUCT
-        x : REAL;
-        y : REAL;
-        z : REAL;
-    END_STRUCT
-    END_TYPE
-    """,
-        'enum': """
-    TYPE E_Colors :
-    (
-        Red := 0,
-        Green := 1,
-        Blue := 2
-    );
-    END_TYPE
-    """
-    }
-    
-    for type_name, sample in samples.items():
-        print("\nParsing {}:".format(type_name.upper()))
-        print("-" * 40)
-        try:
-            element = parse_iec_element(sample)
-            print("Type: {}".format(element.type))
-            print("Name: {}".format(element.name))
-            print("\nDeclaration:")
-            print(element.declaration)
-            if element.implementation:
-                print("\nImplementation:")
-                print(element.implementation)
-            
-            if element.methods:
-                print("\nMethods:")
-                for method in element.methods:
-                    print("  Method: {}".format(method.name))
-                    print("  Declaration:", method.declaration)
-                    print("  Implementation:", method.implementation)
-                    print()
-            
-            if element.actions:
-                print("\nActions:")
-                for action in element.actions:
-                    print("  Action: {}".format(action.name))
-                    print("  Implementation:", action.implementation)
-                    print()
-            
-        except Exception as e:
-            print("Error: {}".format(str(e)))
-        print("=" * 40) 
+    return IECElement(name, expected_type, declaration, implementation, methods, actions) 
