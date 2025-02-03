@@ -1,6 +1,7 @@
 # encoding: utf-8
 from __future__ import print_function
 import re
+from bisect import bisect_right
 
 class Method(object):
     def __init__(self, name, declaration, implementation):
@@ -42,87 +43,54 @@ def remove_comments_and_strings_for_parsing(text):
     
     return parsing_text
 
-def find_element_boundaries(parsing_text, element_type):
-    """Find the start and end of an IEC element in the text."""
-    patterns = {
-        'fb': (r'\bFUNCTION_BLOCK\s+(?P<name>\w+)', r'END_FUNCTION_BLOCK'),
-        'function': (r'\bFUNCTION\s+(?P<name>\w+)', r'END_FUNCTION'),
-        'interface': (r'\bINTERFACE\s+(?P<name>\w+)', r'END_INTERFACE'),
-        'struct': (r'\bTYPE\s+(?P<name>\w+)\s*:\s*STRUCT\b', r'END_STRUCT'),
-        'union': (r'\bTYPE\s+(?P<name>\w+)\s*:\s*UNION\b', r'END_UNION'),
-        'enum': (r'\bTYPE\s+(?P<name>\w+)\s*:\s*\(\s*\w+\s*:=\s*\d+', r'END_TYPE'),
-        'program': (r'\bPROGRAM\s+(?P<name>\w+)', r'END_PROGRAM'),
-        'gvl': (r'\bVAR_GLOBAL\s+(?P<name>\w+)', r'END_VAR'),
-    }
-    
-    start_pattern, end_keyword = patterns[element_type]
-    element_match = re.search(start_pattern, parsing_text, re.DOTALL | re.IGNORECASE)
-    if not element_match:
-        return None, None, None
-        
-    name = element_match.group('name')
-    start_pos = element_match.start()
-    
-    # Find the end
-    end_match = re.search(end_keyword, parsing_text[start_pos:], re.IGNORECASE)
-    if not end_match:
-        return None, None, None
-        
-    end_pos = start_pos + end_match.end()
-    return name, start_pos, end_pos
+def find_newline_positions(text):
+    """Find positions of all newlines in the text."""
+    positions = []
+    pos = -1
+    while True:
+        pos = text.find('\n', pos + 1)
+        if pos == -1:
+            break
+        positions.append(pos)
+    return positions
 
-def parse_var_sections(text):
-    """Parse all VAR sections and return the end position of the last one."""
-    var_sections = re.finditer(r'VAR(?:_INPUT|_OUTPUT|_IN_OUT)?\b.*?END_VAR', text, re.DOTALL | re.IGNORECASE)
-    last_end_var = None
-    for var_match in var_sections:
-        last_end_var = var_match.end()
-    return last_end_var
+def get_line_number(pos, newline_positions):
+    """Get 1-based line number for a character position using binary search."""
+    if not newline_positions or pos <= newline_positions[0]:
+        return 1
+    line = bisect_right(newline_positions, pos)
+    return line + 1
 
-def parse_methods(text, parsing_text):
-    """Parse all methods in the text."""
-    methods = []
-    method_pattern = r'\bMETHOD\s+(?P<name>\w+).*?END_METHOD\b'
+def find_all_elements(parsing_text):
+    """Find all element boundaries in the text."""
+    element_pattern = re.compile(r'''
+        # Opening elements with names
+        \b(FUNCTION_BLOCK|FUNCTION|INTERFACE|PROGRAM|TYPE|METHOD|ACTION)\s+(?P<name>\w+)\b
+        |
+        # Opening elements without names
+        \b(VAR_GLOBAL|VAR_INPUT|VAR_OUTPUT|VAR_TEMP|VAR_IN_OUT)\b
+        |
+        # Closing elements
+        \b(END_FUNCTION_BLOCK|END_FUNCTION|END_INTERFACE|END_TYPE|END_PROGRAM|END_VAR|END_METHOD|END_ACTION)\b
+    ''', re.VERBOSE | re.IGNORECASE | re.MULTILINE)
     
-    for m in re.finditer(method_pattern, parsing_text, re.DOTALL | re.IGNORECASE):
-        name = m.group('name')
-        start_pos = m.start()
-        end_pos = m.end()
-        original_method_text = text[start_pos:end_pos]
+    elements = []
+    for m in element_pattern.finditer(parsing_text):
+        element_type = None
+        name = None
         
-        # Find the split between declaration and implementation
-        var_end = parse_var_sections(original_method_text)
-        if var_end:
-            declaration = original_method_text[:var_end]
-            implementation = original_method_text[var_end:].rstrip()
-        else:
-            # No VAR sections, split at first newline
-            first_newline = original_method_text.find('\n')
-            if first_newline >= 0:
-                declaration = original_method_text[:first_newline]
-                implementation = original_method_text[first_newline:].rstrip()
-            else:
-                declaration = original_method_text
-                implementation = ""
+        # Check which group matched
+        if m.group(1):  # Named opening element
+            element_type = m.group(1).upper()
+            name = m.group('name')
+        elif m.group(3):  # Unnamed opening element
+            element_type = m.group(3).upper()
+        else:  # Closing element
+            element_type = m.group(4).upper()
         
-        methods.append(Method(name, declaration, implementation))
+        elements.append((element_type, name, m.start(), m.end()))
     
-    return methods
-
-def parse_actions(text, parsing_text):
-    """Parse all actions in the text."""
-    actions = []
-    action_pattern = r'ACTION\s+(?P<name>\w+)\s*(?P<implementation>.*?)END_ACTION'
-    
-    for a in re.finditer(action_pattern, parsing_text, re.DOTALL | re.IGNORECASE):
-        name = a.group('name')
-        start_pos = a.start()
-        end_pos = a.end()
-        original_action_text = text[start_pos:end_pos]
-        implementation = original_action_text[original_action_text.find(name) + len(name):-10]
-        actions.append(Action(name, implementation))
-    
-    return actions
+    return elements
 
 def parse_iec_element(text, expected_type=None):
     """
@@ -138,69 +106,52 @@ def parse_iec_element(text, expected_type=None):
     # First remove comments and strings for parsing
     parsing_text = remove_comments_and_strings_for_parsing(text)
     
-    # Try to determine the type if not specified
-    if not expected_type:
-        for type_name in ['fb', 'function', 'interface', 'struct', 'union', 'enum', 'program', 'gvl']:
-            name, start, end = find_element_boundaries(parsing_text, type_name)
-            if name:
-                expected_type = type_name
-                break
-        if not expected_type:
-            raise ValueError("Could not determine element type")
+    # Find all newlines for line number lookups
+    newline_positions = find_newline_positions(text)
     
-    # Find the element boundaries
-    name, start_pos, end_pos = find_element_boundaries(parsing_text, expected_type)
-    if not name:
-        raise ValueError("No {} found in text".format(expected_type.upper()))
+    # Find all elements
+    elements = find_all_elements(parsing_text)
     
-    # Get the original text content
-    element_text = text[:end_pos]
-    element_parsing_text = parsing_text[start_pos:end_pos]
+    # Find the main element boundaries
+    main_element = None
+    for element_type, name, start, end in elements:
+        if element_type in ['FUNCTION_BLOCK', 'FUNCTION', 'INTERFACE', 'PROGRAM', 'TYPE']:
+            main_element = (element_type, name, start, end)
+            break
     
-    # Initialize methods and actions
+    if not main_element:
+        raise ValueError("Could not determine element type")
+    
+    element_type, name, start, end = main_element
+    
+    # Find all VAR sections
+    var_sections = []
+    for e_type, e_name, e_start, e_end in elements:
+        if e_type.startswith('VAR_') and e_start > start:
+            var_sections.append((e_start, e_end))
+    
+    # Find all methods and actions
     methods = []
     actions = []
+    for e_type, e_name, e_start, e_end in elements:
+        if e_type == 'METHOD' and e_start > start:
+            method_text = text[e_start:e_end]
+            methods.append(Method(e_name, method_text, ""))
+        elif e_type == 'ACTION' and e_start > start:
+            action_text = text[e_start:e_end]
+            actions.append(Action(e_name, action_text))
+    
+    # Find the last VAR section
+    last_var_end = 0
+    for var_start, var_end in var_sections:
+        last_var_end = max(last_var_end, var_end)
     
     # Split declaration and implementation
-    if expected_type in ['fb', 'function', 'interface', 'program']:
-        # These types can have VAR sections
-        last_end_var = parse_var_sections(element_text[start_pos:])
-        if last_end_var is not None:
-            declaration = element_text[:start_pos + last_end_var]
-            
-            # For function blocks and interfaces, find all methods and actions first
-            if expected_type in ['fb', 'interface']:
-                methods = parse_methods(element_text[start_pos + last_end_var:], element_parsing_text[last_end_var:])
-            if expected_type == 'fb':
-                actions = parse_actions(element_text[start_pos + last_end_var:], element_parsing_text[last_end_var:])
-            
-            # Find the last METHOD or ACTION
-            last_method_end = 0
-            for method in methods:
-                method_end = element_text[start_pos + last_end_var:].find('END_METHOD', method.declaration.find('METHOD')) + 10
-                last_method_end = max(last_method_end, method_end)
-            
-            last_action_end = 0
-            for action in actions:
-                action_end = element_text[start_pos + last_end_var:].find('END_ACTION', element_text[start_pos + last_end_var:].find('ACTION ' + action.name)) + 10
-                last_action_end = max(last_action_end, action_end)
-            
-            # Implementation starts after the last method or action
-            impl_start = start_pos + last_end_var + max(last_method_end, last_action_end)
-            
-            # Find the next non-whitespace after the last method/action
-            next_content = re.search(r'\S', element_text[impl_start:])
-            if next_content:
-                impl_start += next_content.start()
-                implementation = element_text[impl_start:]
-            else:
-                implementation = ""
-        else:
-            declaration = element_text
-            implementation = ""
+    if last_var_end > 0:
+        declaration = text[:last_var_end]
+        implementation = text[last_var_end:]
     else:
-        # For struct, union, enum, and gvl everything is declaration
-        declaration = element_text
+        declaration = text
         implementation = ""
     
-    return IECElement(name, expected_type, declaration, implementation, methods, actions) 
+    return IECElement(name, element_type.lower(), declaration, implementation, methods, actions) 
