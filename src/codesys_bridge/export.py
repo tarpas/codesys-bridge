@@ -5,6 +5,7 @@ import os
 import shutil
 import time
 import subprocess
+import scriptengine # type: ignore
 
 """
 prop_method		= Guid('792f2eb6-721e-4e64-ba20-bc98351056db')
@@ -44,7 +45,14 @@ print("--- Saving files in the project: ---")
 # git
 has_repo = False
 
-save_folder = r"D:\Gitlab\codesys\Yao"
+# Get project path and set save folder to st_source subdirectory
+project_path = scriptengine.projects.primary.path
+parent_dir = os.path.dirname(os.path.dirname(project_path))  # Go up one more level
+save_folder = os.path.join(
+    parent_dir,
+    os.path.splitext(os.path.basename(project_path))[0] + "_git2",
+    "st_source",
+)
 
 if not os.path.exists(save_folder):
     os.makedirs(save_folder)
