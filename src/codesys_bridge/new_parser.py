@@ -3,25 +3,15 @@ from __future__ import print_function
 import re
 from bisect import bisect_right
 
-class Method(object):
-    def __init__(self, name, declaration, implementation):
-        self.name = name
-        self.declaration = declaration
-        self.implementation = implementation
-
-class Action(object):
-    def __init__(self, name, implementation):
-        self.name = name
-        self.implementation = implementation
-
 class IECElement(object):
-    def __init__(self, name, type, declaration, implementation, methods=None, actions=None):
+    def __init__(self, name, type, start_element, sub_elements, body_element):
         self.name = name
-        self.type = type  # 'fb', 'function', 'interface', 'struct', 'enum', 'program'
-        self.declaration = declaration
-        self.implementation = implementation
-        self.methods = methods or []
-        self.actions = actions or []
+        self.type = type  # 'FUNCTION_BLOCK', 'FUNCTION', 'INTERFACE', 'PROGRAM', 'TYPE', 'VAR_GLOBAL' and inside FUNCTION_BLOCK: 'METHOD', 'ACTION', 'VAR_INPUT', 'VAR_OUTPUT', 'VAR_IN_OUT', 'VAR_TEMP'
+        self.start_segment = start_element # (start_lineno, end_lineno)
+        self.sub_elements = sub_elements # list of IECElements
+        self.body_segment = body_element # (start_lineno, end_lineno)
+
+
 
 def remove_comments_and_strings_for_parsing(text):
     """
@@ -58,23 +48,25 @@ def get_line_number(pos, newline_positions):
     """Get 1-based line number for a character position using binary search."""
     if not newline_positions or pos <= newline_positions[0]:
         return 1
-    line = bisect_right(newline_positions, pos)
+    line = bisect_right(newline_positions, pos - 1)  # -1 because we want the line containing pos
     return line + 1
 
-def find_all_elements(parsing_text):
+def find_all_element_delimiters(parsing_text, newline_positions):
     """Find all element boundaries in the text."""
     element_pattern = re.compile(r'''
         # Opening elements with names
         \b(FUNCTION_BLOCK|FUNCTION|INTERFACE|PROGRAM|TYPE|METHOD|ACTION)\s+(?P<name>\w+)\b
         |
         # Opening elements without names
-        \b(VAR_GLOBAL|VAR_INPUT|VAR_OUTPUT|VAR_TEMP|VAR_IN_OUT)\b
+        \b(VAR_GLOBAL|VAR_INPUT|VAR_OUTPUT|VAR_TEMP|VAR_IN_OUT|VAR)\b
         |
         # Closing elements
         \b(END_FUNCTION_BLOCK|END_FUNCTION|END_INTERFACE|END_TYPE|END_PROGRAM|END_VAR|END_METHOD|END_ACTION)\b
     ''', re.VERBOSE | re.IGNORECASE | re.MULTILINE)
     
-    elements = []
+    element_delimiters = []
+    prev_end_lineno = 1  # Start from line 1
+    
     for m in element_pattern.finditer(parsing_text):
         element_type = None
         name = None
@@ -88,41 +80,64 @@ def find_all_elements(parsing_text):
         else:  # Closing element
             element_type = m.group(4).upper()
         
-        elements.append((element_type, name, m.start(), m.end()))
+        # Start from the line after previous delimiter ended
+        start_lineno = prev_end_lineno
+        end_lineno = get_line_number(m.end(), newline_positions)
+        element_delimiters.append((element_type, name, start_lineno, end_lineno))
+        prev_end_lineno = end_lineno + 1  # Next element starts on next line
     
-    return elements
+    return element_delimiters
 
-def parse_method(text, parsing_text, start, end):
-    """Parse a method into declaration and implementation."""
-    # Find the method header (everything up to the first VAR or newline)
-    header_end = parsing_text[start:end].find('\n')
-    if header_end == -1:
-        return text[start:end], ""
+def build_element_tree(delimiters, start_idx=0):
+    """
+    Recursively build an IEC element tree from element delimiters.
+    Returns (IECElement, next_idx) tuple.
+    """
+    if start_idx >= len(delimiters):
+        return None, start_idx
+
+    curr_type, curr_name, start_lineno, end_lineno = delimiters[start_idx]
     
-    header = text[start:start + header_end]
-    rest_text = text[start + header_end:end]
+    # Skip if this is an END_* element
+    if curr_type.startswith('END_'):
+        return None, start_idx + 1
+        
+    # Find matching END element
+    # VAR sections all use END_VAR
+    end_type = 'END_VAR' if curr_type.startswith('VAR_') else 'END_' + curr_type
+    end_idx = start_idx + 1
+    sub_elements = []
     
-    # Find VAR sections in the rest
-    var_sections = []
-    rest_parsing_text = parsing_text[start + header_end:end]
-    for m in re.finditer(r'\bVAR(?:_INPUT|_OUTPUT|_IN_OUT)?\b.*?END_VAR\b', rest_parsing_text, re.DOTALL | re.IGNORECASE):
-        var_sections.append((start + header_end + m.start(), start + header_end + m.end()))
+    while end_idx < len(delimiters):
+        next_type = delimiters[end_idx][0]
+        if next_type == end_type:
+            break
+            
+        # Recursively parse sub-elements
+        sub_element, new_idx = build_element_tree(delimiters, end_idx)
+        if sub_element:
+            sub_elements.append(sub_element)
+        end_idx = new_idx
+        
+    if end_idx >= len(delimiters):
+        raise ValueError("No matching %s found for %s" % (end_type, curr_type))
+        
+    # Create element with found boundaries
+    element = IECElement(
+        name=curr_name,
+        type=curr_type,
+        start_element=(start_lineno, end_lineno),
+        sub_elements=sub_elements,
+        body_element=(
+            # If there are sub_elements, start after the last one's end element
+            # Otherwise start after the declaration
+            sub_elements[-1].body_segment[1] + 1 if sub_elements 
+            else end_lineno + 1,
+            delimiters[end_idx][3]  # End at the end of END_* marker line
+        )
+    )
     
-    # Find the last VAR section
-    last_var_end = 0
-    for var_start, var_end in var_sections:
-        last_var_end = max(last_var_end, var_end)
-    
-    if var_sections:
-        # Include header and VAR sections in declaration
-        declaration = text[start:last_var_end]
-        implementation = text[last_var_end:end]
-    else:
-        # Just header is declaration
-        declaration = header
-        implementation = rest_text
-    
-    return declaration, implementation
+    return element, end_idx + 1
 
 def parse_iec_element(text, expected_type=None):
     """
@@ -142,48 +157,13 @@ def parse_iec_element(text, expected_type=None):
     newline_positions = find_newline_positions(text)
     
     # Find all elements
-    elements = find_all_elements(parsing_text)
+    element_delimiters = find_all_element_delimiters(parsing_text, newline_positions)
     
-    # Find the main element boundaries
-    main_element = None
-    for element_type, name, start, end in elements:
-        if element_type in ['FUNCTION_BLOCK', 'FUNCTION', 'INTERFACE', 'PROGRAM', 'TYPE', 'VAR_GLOBAL']:
-            main_element = (element_type, name, start, end)
-            break
+    # Build element tree
+    root_element, _ = build_element_tree(element_delimiters)
     
-    if not main_element:
-        raise ValueError("Could not determine element type")
-    
-    element_type, name, start, end = main_element
-    
-    # Find all VAR sections
-    var_sections = []
-    for e_type, e_name, e_start, e_end in elements:
-        if e_type.startswith('VAR_') and e_start > start:
-            var_sections.append((e_start, e_end))
-    
-    # Find all methods and actions
-    methods = []
-    actions = []
-    for e_type, e_name, e_start, e_end in elements:
-        if e_type == 'METHOD' and e_start > start:
-            declaration, implementation = parse_method(text, parsing_text, e_start, e_end)
-            methods.append(Method(e_name, declaration, implementation))
-        elif e_type == 'ACTION' and e_start > start:
-            action_text = text[e_start:e_end]
-            actions.append(Action(e_name, action_text))
-    
-    # Find the last VAR section
-    last_var_end = 0
-    for var_start, var_end in var_sections:
-        last_var_end = max(last_var_end, var_end)
-    
-    # Split declaration and implementation
-    if last_var_end > 0:
-        declaration = text[:last_var_end]
-        implementation = text[last_var_end:]
-    else:
-        declaration = text
-        implementation = ""
-    
-    return IECElement(name, element_type.upper(), declaration, implementation, methods, actions) 
+    if expected_type and root_element.type != expected_type:
+        raise ValueError("Expected %s but found %s" % (expected_type, root_element.type))
+            
+    return root_element
+
