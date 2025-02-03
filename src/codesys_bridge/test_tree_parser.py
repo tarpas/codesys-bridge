@@ -1,5 +1,8 @@
 import unittest
 from new_parser import parse_iec_element, IECElement
+from collections import namedtuple
+
+LineSegment = namedtuple('LineSegment', ['start_line', 'end_line'])
 
 class TestTreeParser(unittest.TestCase):
     def test_simple_function_block(self):
@@ -14,8 +17,8 @@ END_FUNCTION_BLOCK
         self.assertEqual(element.type, "FUNCTION_BLOCK")
         self.assertEqual(element.name, "SimpleBlock")
         self.assertEqual(len(element.sub_elements), 0)
-        self.assertEqual(element.start_segment[0], 1)  # Line numbers are 1-based
-        self.assertEqual(element.body_segment[0], 3)
+        self.assertEqual(element.start_segment.start_line, 1)  # Line numbers are 1-based
+        self.assertEqual(element.body_segment.start_line, 3)
         
     def test_function_block_with_var_sections(self):
         """Test parsing of a function block with VAR sections"""
@@ -38,7 +41,7 @@ END_FUNCTION_BLOCK
         self.assertEqual(element.sub_elements[0].type, "VAR_INPUT")
         self.assertEqual(element.sub_elements[1].type, "VAR_OUTPUT")
         # Body should start after last VAR section
-        self.assertTrue(element.body_segment[0] > element.sub_elements[1].body_segment[1])
+        self.assertTrue(element.body_segment.start_line > element.sub_elements[1].body_segment.end_line)
         
     def test_nested_elements(self):
         """Test parsing of nested elements (function block with method)"""
@@ -95,8 +98,8 @@ FUNCTION_BLOCK CommentedBlock
 END_FUNCTION_BLOCK
 """
         element = parse_iec_element(text)
-        self.assertEqual(element.start_segment[0], 1)  # Should include the (* *) comment
-        self.assertEqual(element.start_segment[1], 4)  # Should end after FUNCTION_BLOCK line
+        self.assertEqual(element.start_segment.start_line, 1)  # Should include the (* *) comment
+        self.assertEqual(element.start_segment.end_line, 4)  # Should end after FUNCTION_BLOCK line
         
     def test_comments_before_var_sections(self):
         """Test that comments before VAR sections are included in their segment"""
@@ -119,8 +122,8 @@ END_FUNCTION_BLOCK
         element = parse_iec_element(text)
         var_input = element.sub_elements[0]
         var_output = element.sub_elements[1]
-        self.assertEqual(var_input.start_segment[0], 3)  # Should include first comment
-        self.assertEqual(var_output.start_segment[0], 8)  # Should include second comment
+        self.assertEqual(var_input.start_segment.start_line, 3)  # Should include first comment
+        self.assertEqual(var_output.start_segment.start_line, 8)  # Should include second comment
         
     def test_comments_between_elements(self):
         """Test that comments between elements are handled correctly"""
@@ -148,9 +151,9 @@ END_FUNCTION_BLOCK
         element = parse_iec_element(text)
         methods = [e for e in element.sub_elements if e.type == "METHOD"]
         self.assertEqual(len(methods), 2)
-        self.assertEqual(methods[0].start_segment[0], 6)  # Should include first method's comments
-        self.assertEqual(methods[1].start_segment[0], 12)  # Should include second method's comments
-        self.assertEqual(element.body_segment[0], 17)  # Body should start at its comment
+        self.assertEqual(methods[0].start_segment.start_line, 6)  # Should include first method's comments
+        self.assertEqual(methods[1].start_segment.start_line, 12)  # Should include second method's comments
+        self.assertEqual(element.body_segment.start_line, 17)  # Body should start at its comment
 
     def test_inline_comments(self):
         """Test that inline comments are preserved in line counting"""
@@ -166,10 +169,10 @@ END_FUNCTION_BLOCK
 """
         element = parse_iec_element(text)
         var_input = element.sub_elements[0]
-        self.assertEqual(var_input.start_segment[0], 3)
-        self.assertEqual(var_input.start_segment[1], 3)  # Should end on VAR_INPUT line
-        self.assertEqual(var_input.body_segment[0], 4)  # Body starts at first declaration
-        self.assertEqual(var_input.body_segment[1], 6)  # Body ends at END_VAR line
+        self.assertEqual(var_input.start_segment.start_line, 3)
+        self.assertEqual(var_input.start_segment.end_line, 3)  # Should end on VAR_INPUT line
+        self.assertEqual(var_input.body_segment.start_line, 4)  # Body starts at first declaration
+        self.assertEqual(var_input.body_segment.end_line, 6)  # Body ends at END_VAR line
 
 if __name__ == '__main__':
     unittest.main() 

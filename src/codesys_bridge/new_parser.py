@@ -2,14 +2,19 @@
 from __future__ import print_function
 import re
 from bisect import bisect_right
+from collections import namedtuple
+
+# Named tuples for structured data
+ElementDelimiter = namedtuple('ElementDelimiter', ['type', 'name', 'start_line', 'end_line'])
+LineSegment = namedtuple('LineSegment', ['start_line', 'end_line'])
 
 class IECElement(object):
-    def __init__(self, name, type, start_element, sub_elements, body_element):
+    def __init__(self, name, type, start_segment, sub_elements, body_segment):
         self.name = name
         self.type = type  # 'FUNCTION_BLOCK', 'FUNCTION', 'INTERFACE', 'PROGRAM', 'TYPE', 'VAR_GLOBAL' and inside FUNCTION_BLOCK: 'METHOD', 'ACTION', 'VAR_INPUT', 'VAR_OUTPUT', 'VAR_IN_OUT', 'VAR_TEMP'
-        self.start_segment = start_element # (start_lineno, end_lineno)
+        self.start_segment = LineSegment(*start_segment) if isinstance(start_segment, tuple) else start_segment
         self.sub_elements = sub_elements # list of IECElements
-        self.body_segment = body_element # (start_lineno, end_lineno)
+        self.body_segment = LineSegment(*body_segment) if isinstance(body_segment, tuple) else body_segment
 
 
 
@@ -81,7 +86,12 @@ def find_all_element_delimiters(parsing_text, newline_positions):
             element_type = m.group(4).upper()
         
         end_lineno = get_line_number(m.end(), newline_positions)
-        element_delimiters.append((element_type, name, prev_end_lineno, end_lineno))
+        element_delimiters.append(ElementDelimiter(
+            type=element_type,
+            name=name,
+            start_line=prev_end_lineno,
+            end_line=end_lineno
+        ))
         prev_end_lineno = end_lineno + 1
     
     return element_delimiters
@@ -94,20 +104,20 @@ def build_element_tree(delimiters, start_idx=0):
     if start_idx >= len(delimiters):
         return None, start_idx
 
-    curr_type, curr_name, start_lineno, end_lineno = delimiters[start_idx]
+    delimiter = delimiters[start_idx]
     
     # Skip if this is an END_* element
-    if curr_type.startswith('END_'):
+    if delimiter.type.startswith('END_'):
         return None, start_idx + 1
         
     # Find matching END element
     # VAR sections all use END_VAR
-    end_type = 'END_VAR' if curr_type.startswith('VAR_') else 'END_' + curr_type
+    end_type = 'END_VAR' if delimiter.type.startswith('VAR_') else 'END_' + delimiter.type
     end_idx = start_idx + 1
     sub_elements = []
     
     while end_idx < len(delimiters):
-        if delimiters[end_idx][0] == end_type:
+        if delimiters[end_idx].type == end_type:
             break
             
         sub_element, new_idx = build_element_tree(delimiters, end_idx)
@@ -116,18 +126,18 @@ def build_element_tree(delimiters, start_idx=0):
         end_idx = new_idx
         
     if end_idx >= len(delimiters):
-        raise ValueError("No matching %s found for %s" % (end_type, curr_type))
+        raise ValueError("No matching %s found for %s" % (end_type, delimiter.type))
         
     # Create element with found boundaries
     return IECElement(
-        name=curr_name,
-        type=curr_type,
-        start_element=(start_lineno, end_lineno),
+        name=delimiter.name,
+        type=delimiter.type,
+        start_segment=LineSegment(delimiter.start_line, delimiter.end_line),
         sub_elements=sub_elements,
-        body_element=(
-            sub_elements[-1].body_segment[1] + 1 if sub_elements 
-            else end_lineno + 1,
-            delimiters[end_idx][3]  # End at the end of END_* marker line
+        body_segment=LineSegment(
+            sub_elements[-1].body_segment.end_line + 1 if sub_elements 
+            else delimiter.end_line + 1,
+            delimiters[end_idx].end_line  # End at the end of END_* marker line
         )
     ), end_idx + 1
 
