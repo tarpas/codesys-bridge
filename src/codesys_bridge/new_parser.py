@@ -169,3 +169,49 @@ def parse_iec_element(text, expected_type=None):
             
     return root_element
 
+def is_var_section(element_type):
+    """Check if element type is a VAR section."""
+    return element_type.startswith('VAR_') or element_type == 'VAR'
+
+def can_have_sub_elements(element_type):
+    """Check if element type can have sub-elements."""
+    return element_type in {'FUNCTION_BLOCK', 'FUNCTION', 'PROGRAM', 'METHOD', 'ACTION'}
+
+def get_machine_expert_parts(element, text_lines):
+    """
+    Get declaration and implementation parts for Machine Expert.
+    
+    Args:
+        element (IECElement): The element to process
+        text_lines (list): List of all lines from the original text
+        
+    Returns:
+        tuple: (declaration_lines, implementation_lines)
+    """
+    if can_have_sub_elements(element.type):
+        declaration = text_lines[element.start_segment.start_line:element.body_segment.end_line]
+        for sub in element.sub_elements:
+            if is_var_section(sub.type):
+                declaration.extend(text_lines[sub.start_segment.start_line:sub.body_segment.end_line])
+        implementation = text_lines[element.body_segment.start_line:element.body_segment.end_line]
+    else:
+        declaration = text_lines[element.start_segment.start_line - 1:element.start_segment.end_line]
+        declaration.extend(text_lines[element.body_segment.start_line:element.body_segment.end_line])        
+    
+    return declaration, implementation
+
+def get_machine_expert_text(element, original_text):
+    """
+    Get declaration and implementation text for Machine Expert.
+    
+    Args:
+        element (IECElement): The element to process
+        original_text (str): The original text that was parsed
+        
+    Returns:
+        tuple: (declaration_text, implementation_text)
+    """
+    text_lines = original_text.splitlines(True)
+    declaration, implementation = get_machine_expert_parts(element, text_lines)
+    return ''.join(declaration), ''.join(implementation)
+
