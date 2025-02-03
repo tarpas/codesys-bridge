@@ -2,9 +2,9 @@
 from __future__ import print_function
 import os
 import shutil
-PROJECT = r"D:\project\CoDeSys\HMI\a.project"
+PROJECT = r"C:\Users\tibor\Documents\Pollak\MEProjects\test\me21dxyz.project"
 
-from_folder=r'D:\Gitlab\codesys\Yao'
+from_folder=r'C:\Users\tibor\Documents\Pollak\MEProjects\me21d_git2\st_source'
 
 
 def check(func):

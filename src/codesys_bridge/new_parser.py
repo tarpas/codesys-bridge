@@ -186,4 +186,4 @@ def parse_iec_element(text, expected_type=None):
         declaration = text
         implementation = ""
     
-    return IECElement(name, element_type.lower(), declaration, implementation, methods, actions) 
+    return IECElement(name, element_type.upper(), declaration, implementation, methods, actions) 
