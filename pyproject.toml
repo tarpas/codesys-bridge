@@ -21,6 +21,7 @@ codesys_bridge = ["assets/*.ico"]
 
 [dependency-groups]
 dev = [
+    "mdformat>=0.7.22",
     "pillow>=11.1.0",
     "ruff>=0.9.3",
 ]

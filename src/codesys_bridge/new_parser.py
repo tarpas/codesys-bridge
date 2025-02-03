@@ -71,20 +71,18 @@ def find_all_element_delimiters(parsing_text, newline_positions):
         element_type = None
         name = None
         
-        # Check which group matched
+        # Check which group matched and get type/name
         if m.group(1):  # Named opening element
             element_type = m.group(1).upper()
             name = m.group('name')
-        elif m.group(3):  # Unnamed opening element
+        elif m.group(3):  # VAR section
             element_type = m.group(3).upper()
         else:  # Closing element
             element_type = m.group(4).upper()
         
-        # Start from the line after previous delimiter ended
-        start_lineno = prev_end_lineno
         end_lineno = get_line_number(m.end(), newline_positions)
-        element_delimiters.append((element_type, name, start_lineno, end_lineno))
-        prev_end_lineno = end_lineno + 1  # Next element starts on next line
+        element_delimiters.append((element_type, name, prev_end_lineno, end_lineno))
+        prev_end_lineno = end_lineno + 1
     
     return element_delimiters
 
@@ -109,11 +107,9 @@ def build_element_tree(delimiters, start_idx=0):
     sub_elements = []
     
     while end_idx < len(delimiters):
-        next_type = delimiters[end_idx][0]
-        if next_type == end_type:
+        if delimiters[end_idx][0] == end_type:
             break
             
-        # Recursively parse sub-elements
         sub_element, new_idx = build_element_tree(delimiters, end_idx)
         if sub_element:
             sub_elements.append(sub_element)
@@ -123,21 +119,17 @@ def build_element_tree(delimiters, start_idx=0):
         raise ValueError("No matching %s found for %s" % (end_type, curr_type))
         
     # Create element with found boundaries
-    element = IECElement(
+    return IECElement(
         name=curr_name,
         type=curr_type,
         start_element=(start_lineno, end_lineno),
         sub_elements=sub_elements,
         body_element=(
-            # If there are sub_elements, start after the last one's end element
-            # Otherwise start after the declaration
             sub_elements[-1].body_segment[1] + 1 if sub_elements 
             else end_lineno + 1,
             delimiters[end_idx][3]  # End at the end of END_* marker line
         )
-    )
-    
-    return element, end_idx + 1
+    ), end_idx + 1
 
 def parse_iec_element(text, expected_type=None):
     """
