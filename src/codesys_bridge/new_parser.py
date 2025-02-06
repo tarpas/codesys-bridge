@@ -106,9 +106,8 @@ def build_element_tree(delimiters, start_idx=0):
 
     delimiter = delimiters[start_idx]
     
-    # Skip if this is an END_* element
-    if delimiter.type.startswith('END_'):
-        return None, start_idx + 1
+    # We should never start parsing from an END_* element
+    assert not delimiter.type.startswith('END_'), "Unexpected END_* element at start: "
         
     # Find matching END element
     # VAR sections all use END_VAR
@@ -141,7 +140,7 @@ def build_element_tree(delimiters, start_idx=0):
         )
     ), end_idx + 1
 
-def parse_iec_element(text, expected_type=None):
+def parse_iec_element(text,):
     """
     Parse any IEC structured text element.
     
@@ -164,10 +163,13 @@ def parse_iec_element(text, expected_type=None):
     # Build element tree
     root_element, _ = build_element_tree(element_delimiters)
     
-    if expected_type and root_element.type != expected_type:
-        raise ValueError("Expected %s but found %s" % (expected_type, root_element.type))
+
+
             
     return root_element
+
+
+
 
 def is_var_section(element_type):
     """Check if element type is a VAR section."""
@@ -177,30 +179,28 @@ def can_have_sub_elements(element_type):
     """Check if element type can have sub-elements."""
     return element_type in {'FUNCTION_BLOCK', 'FUNCTION', 'PROGRAM', 'METHOD', 'ACTION'}
 
-def get_machine_expert_parts(element, text_lines):
-    """
-    Get declaration and implementation parts for Machine Expert.
-    
-    Args:
-        element (IECElement): The element to process
-        text_lines (list): List of all lines from the original text
-        
-    Returns:
-        tuple: (declaration_lines, implementation_lines)
-    """
+def get_declaration_and_implementation(element, text_lines):
+
     if can_have_sub_elements(element.type):
-        declaration = text_lines[element.start_segment.start_line:element.body_segment.end_line]
+        declaration = text_lines[element.start_segment.start_line:element.start_segment.end_line]
         for sub in element.sub_elements:
             if is_var_section(sub.type):
                 declaration.extend(text_lines[sub.start_segment.start_line:sub.body_segment.end_line])
         implementation = text_lines[element.body_segment.start_line:element.body_segment.end_line]
     else:
         declaration = text_lines[element.start_segment.start_line - 1:element.start_segment.end_line]
-        declaration.extend(text_lines[element.body_segment.start_line:element.body_segment.end_line])        
+        declaration.extend(text_lines[element.body_segment.start_line:element.body_segment.end_line])
+        implementation = []        
     
     return declaration, implementation
 
-def get_machine_expert_text(element, original_text):
+def get_subelements_text_lines(sub_elements, text_lines): # -> text lines
+    result = []
+    for sub in sub_elements:
+        result.extend(get_declaration_and_implementation(sub, text_lines))
+    return result
+
+def get_file_content(element, original_text):
     """
     Get declaration and implementation text for Machine Expert.
     
@@ -212,6 +212,36 @@ def get_machine_expert_text(element, original_text):
         tuple: (declaration_text, implementation_text)
     """
     text_lines = original_text.splitlines(True)
-    declaration, implementation = get_machine_expert_parts(element, text_lines)
-    return ''.join(declaration), ''.join(implementation)
+    declaration, implementation = get_declaration_and_implementation(element, text_lines)
+    sub_elements_text_lines = get_subelements_text_lines(element.sub_elements, text_lines)
+    return ''.join(declaration) + ''.join(sub_elements_text_lines) + ''.join(implementation)
+
+
+
+class TextualRepresentation(object):
+    def __init__(self, text):
+        self.text = text
+
+class METreeElement(object):
+    def __init__(self, root_element, lines_list, textual_declaration, textual_implementation, children, type, name):
+        self.textual_declaration = TextualRepresentation(textual_declaration)
+        self.textual_implementation = TextualRepresentation(textual_implementation) 
+        self.children = children
+        self.type = type
+        self.name = name
+
+
+    def get_children(self): # -> list of METreeElement
+        return self.children
+
+
+    def get_name(self): # str
+        return self.name
+
+    def get_declaration(self): # -> TextualRepresentation
+        return self.textual_declaration
+
+
+    def get_implementation(self): # -> TextualRepresentation
+        return self.textual_implementation
 

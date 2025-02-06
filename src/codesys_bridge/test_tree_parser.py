@@ -4,6 +4,52 @@ from collections import namedtuple
 
 LineSegment = namedtuple('LineSegment', ['start_line', 'end_line'])
 
+class HighLevelTest(unittest.TestCase):
+    def atest_text_to_tree(self):
+        text = (
+"""
+FUNCTION_BLOCK NestedBlock
+    VAR
+        x : INT;
+    END_VAR
+    
+    METHOD MyMethod
+        VAR_INPUT
+            param : INT;
+        END_VAR
+        x := param;
+    END_METHOD
+    
+    x := 5;
+END_FUNCTION_BLOCK
+""")
+        tree = parse_iec_tree(text).sub_elements[0]
+        self.assertEqual(tree.type, "FUNCTION_BLOCK")
+        self.assertEqual(tree.name, "NestedBlock")
+        self.assertEqual(len(tree.sub_elements), 1)
+        self.assertEqual(tree.declaration, """
+FUNCTION_BLOCK NestedBlock
+    VAR
+        x : INT;
+    END_VAR
+""")
+        self.assertEqual(tree.implementation.text, (
+"""    
+    x := 5;
+END_FUNCTION_BLOCK
+"""))
+                         
+                         
+        method = tree.sub_elements[0]
+        self.assertEqual(method.type, "METHOD")
+
+        self.assertEqual(tree.sub_elements[0].type, "METHOD")
+        self.assertEqual(tree.sub_elements[1].type, "VAR")
+        
+
+
+
+
 class TestTreeParser(unittest.TestCase):
     def test_simple_function_block(self):
         """Test parsing of a simple function block with no sub-elements"""
@@ -17,7 +63,8 @@ END_FUNCTION_BLOCK
         self.assertEqual(element.type, "FUNCTION_BLOCK")
         self.assertEqual(element.name, "SimpleBlock")
         self.assertEqual(len(element.sub_elements), 0)
-        self.assertEqual(element.start_segment.start_line, 1)  # Line numbers are 1-based
+        self.assertEqual(element.start_segment.start_line, 1)
+        self.assertEqual(element.start_segment.end_line, 2)
         self.assertEqual(element.body_segment.start_line, 3)
         
     def test_function_block_with_var_sections(self):
@@ -82,11 +129,6 @@ END_TYPE
         self.assertEqual(element.name, "MyStruct")
         self.assertEqual(len(element.sub_elements), 1)
         
-    def test_expected_type_validation(self):
-        """Test that expected_type validation works"""
-        text = "FUNCTION_BLOCK MyBlock\nEND_FUNCTION_BLOCK"
-        with self.assertRaises(ValueError):
-            parse_iec_element(text, expected_type="FUNCTION")
             
     def test_comments_before_elements(self):
         """Test that comments before elements are included in the element's segment"""
