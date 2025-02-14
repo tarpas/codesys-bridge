@@ -4,6 +4,7 @@ import re
 from bisect import bisect_right
 from collections import namedtuple
 
+
 # Named tuples for structured data
 ElementDelimiter = namedtuple('ElementDelimiter', ['type', 'name', 'start_line', 'end_line'])
 LineSegment = namedtuple('LineSegment', ['start_line', 'end_line'])
@@ -169,22 +170,10 @@ def can_have_sub_elements(element_type):
 def get_declaration_and_implementation(element, text_lines):
     declaration = []
     implementation = []
-
-    if can_have_sub_elements(element.type):
-        # Include the top-level declaration line
-        declaration.append(text_lines[element.start_segment.start_line - 1])
-        for sub in element.sub_elements:
-            if is_var_section(sub.type):
-                declaration.extend(text_lines[sub.start_segment.start_line - 1:sub.body_segment.end_line])
-            else:
-                sub_declaration, sub_implementation = get_declaration_and_implementation(sub, text_lines)
-                declaration.extend(sub_declaration)
-                implementation.extend(sub_implementation)
-        implementation.extend(text_lines[element.body_segment.start_line - 1:element.body_segment.end_line])
-    else:
-        declaration.extend(text_lines[element.start_segment.start_line - 1:element.start_segment.end_line])
-        implementation.extend(text_lines[element.body_segment.start_line - 1:element.body_segment.end_line])
     
+    declaration = text_lines[element.start_segment.start_line - 1:element.start_segment.end_line]
+    implementation = text_lines[element.body_segment.start_line - 1:element.body_segment.end_line]
+
     return declaration, implementation
 
 def get_subelements_text_lines(sub_elements, text_lines): # -> text lines
@@ -237,4 +226,35 @@ class METreeElement(object):
 
     def get_implementation(self): # -> TextualRepresentation
         return self.textual_implementation
+
+
+def merge_var_sections(element):
+    """
+    Transform an IECElement by merging VAR sections into the parent's start segment.
+    Returns a new IECElement with VAR sections merged and removed from sub_elements.
+    """
+    # Find the last VAR section's end line (if any)
+    var_sections = [sub for sub in element.sub_elements if is_var_section(sub.type)]
+    non_var_elements = [sub for sub in element.sub_elements if not is_var_section(sub.type)]
+
+    if var_sections:
+        # Update the start segment to include all VAR sections
+        last_var_end = max(var.body_segment.end_line for var in var_sections)
+        new_start_segment = LineSegment(
+            element.start_segment.start_line,
+            last_var_end
+        )
+    else:
+        new_start_segment = element.start_segment
+
+    # Recursively process non-VAR sub-elements
+    new_sub_elements = [merge_var_sections(sub) for sub in non_var_elements]
+
+    return IECElement(
+        name=element.name,
+        type=element.type,
+        start_segment=new_start_segment,
+        sub_elements=new_sub_elements,
+        body_segment=element.body_segment
+    )
 

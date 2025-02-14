@@ -1,10 +1,6 @@
 import unittest
-from new_parser import is_var_section, parse_iec_element, IECElement
-from collections import namedtuple
-from new_parser import get_declaration_and_implementation
+from new_parser import merge_var_sections, parse_iec_element, get_declaration_and_implementation
 import difflib
-
-LineSegment = namedtuple('LineSegment', ['start_line', 'end_line'])
 
 
 class HighLevelTest(unittest.TestCase):
@@ -297,11 +293,9 @@ FUNCTION_BLOCK MethodComments
     x := 3;
 END_FUNCTION_BLOCK
 """
-        # First dump the parsed element structure
         element = parse_iec_element(text)
-        print("\nDumping IECElement structure:")
-        self.dump_iec_element(element)
-        print("\n")
+        
+        transformed_element = merge_var_sections(element)
 
         expected_tree = {
                         "children": [
@@ -342,22 +336,17 @@ FUNCTION_BLOCK MethodComments
     VAR
         x : INT;
     END_VAR
-    
-    
 """,
             "implementation": """\
-
+    
     (* This comment belongs to the body *)
     x := 3;
 END_FUNCTION_BLOCK
 """
         }
 
-        #actual = {'children': [{'children': [], 'name': None, 'implementation': '', 'type': 'VAR', 'declaration': '    VAR\n    END_VAR\n'}, {'children': [], 'name': 'Method1', 'implementation': '    END_METHOD\n', 'type': 'METHOD', 'declaration': '    (* Comment before first method *)\n    // Another comment\n    METHOD Method1\n'}, {'children': [], 'name': 'Method2', 'implementation': '    END_METHOD\n', 'type': 'METHOD', 'declaration': '    (* Comment before second method *)\n    METHOD Method2\n'}], 'name': 'MethodComments', 'implementation': '    (* This comment belongs to the body *)\n    x := 3;\nEND_FUNCTION_BLOCK\n', 'type': 'FUNCTION_BLOCK', 'declaration': '        x : INT;\n    END_VAR\n'}
-
         text_lines = text.splitlines(True)
-        actual_tree = text_to_tree(element, text_lines)
-        print(actual_tree)
+        actual_tree = text_to_tree(transformed_element, text_lines)
 
         self.assertMyDictEqual(actual_tree, expected_tree)
 
@@ -369,7 +358,7 @@ def text_to_tree(element, text_lines):
         "type": element.type,
         "name": element.name,
         "declaration": ''.join(declaration),
-        "children": [text_to_tree(sub, text_lines) for sub in element.sub_elements if not is_var_section(sub.type)],
+        "children": [text_to_tree(sub, text_lines) for sub in element.sub_elements],
         "implementation": ''.join(implementation)
     }
     return tree
