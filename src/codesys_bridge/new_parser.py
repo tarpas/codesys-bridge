@@ -151,24 +151,11 @@ def parse_iec_element(text,):
     Returns:
         IECElement: The parsed element
     """
-    # First remove comments and strings for parsing
-    parsing_text = remove_comments_and_strings_for_parsing(text)
-    
-    # Find all newlines for line number lookups
+    parsing_text = remove_comments_and_strings_for_parsing(text)    
     newline_positions = find_newline_positions(text)
-    
-    # Find all elements
     element_delimiters = find_all_element_delimiters(parsing_text, newline_positions)
-    
-    # Build element tree
-    root_element, _ = build_element_tree(element_delimiters)
-    
-
-
-            
+    root_element, _ = build_element_tree(element_delimiters)                
     return root_element
-
-
 
 
 def is_var_section(element_type):
@@ -180,17 +167,23 @@ def can_have_sub_elements(element_type):
     return element_type in {'FUNCTION_BLOCK', 'FUNCTION', 'PROGRAM', 'METHOD', 'ACTION'}
 
 def get_declaration_and_implementation(element, text_lines):
+    declaration = []
+    implementation = []
 
     if can_have_sub_elements(element.type):
-        declaration = text_lines[element.start_segment.start_line:element.start_segment.end_line]
+        # Include the top-level declaration line
+        declaration.append(text_lines[element.start_segment.start_line - 1])
         for sub in element.sub_elements:
             if is_var_section(sub.type):
-                declaration.extend(text_lines[sub.start_segment.start_line:sub.body_segment.end_line])
-        implementation = text_lines[element.body_segment.start_line:element.body_segment.end_line]
+                declaration.extend(text_lines[sub.start_segment.start_line - 1:sub.body_segment.end_line])
+            else:
+                sub_declaration, sub_implementation = get_declaration_and_implementation(sub, text_lines)
+                declaration.extend(sub_declaration)
+                implementation.extend(sub_implementation)
+        implementation.extend(text_lines[element.body_segment.start_line - 1:element.body_segment.end_line])
     else:
-        declaration = text_lines[element.start_segment.start_line - 1:element.start_segment.end_line]
-        declaration.extend(text_lines[element.body_segment.start_line:element.body_segment.end_line])
-        implementation = []        
+        declaration.extend(text_lines[element.start_segment.start_line - 1:element.start_segment.end_line])
+        implementation.extend(text_lines[element.body_segment.start_line - 1:element.body_segment.end_line])
     
     return declaration, implementation
 
