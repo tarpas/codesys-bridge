@@ -19,26 +19,6 @@ class IECElement(object):
 
 
 
-def remove_comments_and_strings_for_parsing(text):
-    """
-    Temporarily removes comments and string literals for parsing purposes while preserving whitespace.
-    Uses regex substitution for efficiency.
-    """
-    # Create a copy of the text for parsing
-    parsing_text = text
-    
-    # Replace string literals with spaces
-    parsing_text = re.sub(r'"[^"]*"', lambda m: ' ' * len(m.group(0)), parsing_text)
-    parsing_text = re.sub(r"'[^']*'", lambda m: ' ' * len(m.group(0)), parsing_text)
-    
-    # Replace (* *) style comments
-    parsing_text = re.sub(r'\(\*.*?\*\)', lambda m: ' ' * len(m.group(0)), parsing_text, flags=re.DOTALL)
-    
-    # Replace // style comments
-    parsing_text = re.sub(r'//.*$', lambda m: ' ' * len(m.group(0)), parsing_text, flags=re.MULTILINE)
-    
-    return parsing_text
-
 def find_newline_positions(text):
     """Find positions of all newlines in the text."""
     positions = []
@@ -57,43 +37,56 @@ def get_line_number(pos, newline_positions):
     line = bisect_right(newline_positions, pos - 1)  # -1 because we want the line containing pos
     return line + 1
 
-def find_all_element_delimiters(parsing_text, newline_positions):
+def find_element_delimiters(text, newline_positions):
     """Find all element boundaries in the text."""
     element_pattern = re.compile(r'''
+        # Comments and strings to ignore (non-capturing)
+        (?:
+            \(\*.*?\*\)  # Multiline comments
+            |
+            //[^\n]*     # Single line comments
+            |
+            "[^"]*"      # Double quoted strings
+            |
+            '[^']*'      # Single quoted strings
+        )
+        |
         # Opening elements with names
-        \b(FUNCTION_BLOCK|FUNCTION|INTERFACE|PROGRAM|TYPE|METHOD|ACTION)\s+(?P<name>\w+)\b
+        \b(?P<named_element>FUNCTION_BLOCK|FUNCTION|INTERFACE|PROGRAM|TYPE|METHOD|ACTION)\s+(?P<name>\w+)\b
         |
         # Opening elements without names
-        \b(VAR_GLOBAL|VAR_INPUT|VAR_OUTPUT|VAR_TEMP|VAR_IN_OUT|VAR)\b
+        \b(?P<var_section>VAR_GLOBAL|VAR_INPUT|VAR_OUTPUT|VAR_TEMP|VAR_IN_OUT|VAR)\b
         |
         # Closing elements
-        \b(END_FUNCTION_BLOCK|END_FUNCTION|END_INTERFACE|END_TYPE|END_PROGRAM|END_VAR|END_METHOD|END_ACTION)\b
-    ''', re.VERBOSE | re.IGNORECASE | re.MULTILINE)
+        \b(?P<end_element>END_FUNCTION_BLOCK|END_FUNCTION|END_INTERFACE|END_TYPE|END_PROGRAM|END_VAR|END_METHOD|END_ACTION)\b
+    ''', re.VERBOSE | re.IGNORECASE | re.MULTILINE | re.DOTALL)
     
     element_delimiters = []
-    prev_end_lineno = 1  # Start from line 1
+    start_line = 1  # Start from line 1
     
-    for m in element_pattern.finditer(parsing_text):
+    for m in element_pattern.finditer(text):
         element_type = None
         name = None
         
         # Check which group matched and get type/name
-        if m.group(1):  # Named opening element
-            element_type = m.group(1).upper()
+        if m.group('named_element'):  # Named opening element
+            element_type = m.group('named_element').upper()
             name = m.group('name')
-        elif m.group(3):  # VAR section
-            element_type = m.group(3).upper()
-        else:  # Closing element
-            element_type = m.group(4).upper()
+        elif m.group('var_section'):  # VAR section
+            element_type = m.group('var_section').upper()
+        elif m.group('end_element'):  # Closing element
+            element_type = m.group('end_element').upper()
+        else:  # Must be a comment or string, skip it
+            continue
         
-        end_lineno = get_line_number(m.end(), newline_positions)
+        end_line = get_line_number(m.end(), newline_positions)
         element_delimiters.append(ElementDelimiter(
             type=element_type,
             name=name,
-            start_line=prev_end_lineno,
-            end_line=end_lineno
+            start_line=start_line,
+            end_line=end_line
         ))
-        prev_end_lineno = end_lineno + 1
+        start_line = end_line + 1
     
     return element_delimiters
 
@@ -142,30 +135,15 @@ def build_element_tree(delimiters, start_idx=0):
     ), end_idx + 1
 
 def parse_iec_element(text,):
-    """
-    Parse any IEC structured text element.
-    
-    Args:
-        text (str): The complete text of the *.iecst file
-        expected_type (str, optional): Expected type ('FUNCTION_BLOCK', 'FUNCTION', etc.')
-        
-    Returns:
-        IECElement: The parsed element
-    """
-    parsing_text = remove_comments_and_strings_for_parsing(text)    
     newline_positions = find_newline_positions(text)
-    element_delimiters = find_all_element_delimiters(parsing_text, newline_positions)
+    element_delimiters = find_element_delimiters(text, newline_positions)
     root_element, _ = build_element_tree(element_delimiters)                
     return root_element
 
 
 def is_var_section(element_type):
-    """Check if element type is a VAR section."""
     return element_type.startswith('VAR_') or element_type == 'VAR'
 
-def can_have_sub_elements(element_type):
-    """Check if element type can have sub-elements."""
-    return element_type in {'FUNCTION_BLOCK', 'FUNCTION', 'PROGRAM', 'METHOD', 'ACTION'}
 
 def get_declaration_and_implementation(element, text_lines):
     declaration = []
@@ -220,12 +198,14 @@ class METreeElement(object):
     def get_name(self): # str
         return self.name
 
-    def get_declaration(self): # -> TextualRepresentation
-        return self.textual_declaration
+    @property
+    def has_textual_declaration(self):
+        return self.textual_declaration.text != ''
 
+    @property
+    def has_textual_implementation(self):
+        return self.textual_implementation.text != ''
 
-    def get_implementation(self): # -> TextualRepresentation
-        return self.textual_implementation
 
 
 def merge_var_sections(element):

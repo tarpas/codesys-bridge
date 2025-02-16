@@ -6,7 +6,7 @@ import difflib
 class HighLevelTest(unittest.TestCase):
     def atest_text_to_tree(self):
         text = (
-"""
+"""\
 FUNCTION_BLOCK NestedBlock
     VAR
         x : INT;
@@ -22,7 +22,7 @@ FUNCTION_BLOCK NestedBlock
     x := 5;
 END_FUNCTION_BLOCK
 """)
-        tree = parse_iec_tree(text).sub_elements[0]
+        tree = merge_var_sections(parse_iec_element(text))
         self.assertEqual(tree.type, "FUNCTION_BLOCK")
         self.assertEqual(tree.name, "NestedBlock")
         self.assertEqual(len(tree.sub_elements), 1)
@@ -32,7 +32,7 @@ FUNCTION_BLOCK NestedBlock
         x : INT;
     END_VAR
 """)
-        self.assertEqual(tree.implementation.text, (
+        self.assertEqual(tree.textual_implementation.text, (
 """    
     x := 5;
 END_FUNCTION_BLOCK
@@ -218,6 +218,77 @@ END_FUNCTION_BLOCK
 
 class TestTreeToText(unittest.TestCase):
 
+    original_file_input = """\
+FUNCTION_BLOCK MethodComments
+    VAR
+        x : INT;
+    END_VAR
+    
+    (* Comment before first method *)
+    // Another comment
+    METHOD Method1
+        x := 1;
+    END_METHOD
+    
+    (* Comment before second method *)
+    METHOD Method2
+        x := 2;
+    END_METHOD
+    
+    (* This comment belongs to the body *)
+    x := 3;
+END_FUNCTION_BLOCK
+"""
+
+    expected_tree = {
+                        "children": [
+                {
+                    "type": "METHOD",
+                    "name": "Method1",
+                    "declaration": """\
+    
+    (* Comment before first method *)
+    // Another comment
+    METHOD Method1
+""",
+                    "children": [],
+                    "implementation": """\
+        x := 1;
+    END_METHOD
+"""
+                },
+                {
+                    "type": "METHOD",
+                    "name": "Method2",
+                    "declaration": """\
+    
+    (* Comment before second method *)
+    METHOD Method2
+""",
+                    "children": [],
+                    "implementation": """\
+        x := 2;
+    END_METHOD
+"""
+                }
+            ],
+"type": "FUNCTION_BLOCK",
+            "name": "MethodComments",
+            "declaration": """\
+FUNCTION_BLOCK MethodComments
+    VAR
+        x : INT;
+    END_VAR
+""",
+            "implementation": """\
+    
+    (* This comment belongs to the body *)
+    x := 3;
+END_FUNCTION_BLOCK
+"""
+        }
+
+
     def assertMyDictEqual(self, d1, d2, msg=None, path=""):
         """Assert that two dictionaries are equal regardless of key order."""
         # Convert any non-dict values to dicts for nested comparison
@@ -272,84 +343,19 @@ class TestTreeToText(unittest.TestCase):
         print()
 
     def test_text_to_tree(self):
-        text = """\
-FUNCTION_BLOCK MethodComments
-    VAR
-        x : INT;
-    END_VAR
-    
-    (* Comment before first method *)
-    // Another comment
-    METHOD Method1
-        x := 1;
-    END_METHOD
-    
-    (* Comment before second method *)
-    METHOD Method2
-        x := 2;
-    END_METHOD
-    
-    (* This comment belongs to the body *)
-    x := 3;
-END_FUNCTION_BLOCK
-"""
-        element = parse_iec_element(text)
-        
+        element = parse_iec_element(self.original_file_input)
+
         transformed_element = merge_var_sections(element)
 
-        expected_tree = {
-                        "children": [
-                {
-                    "type": "METHOD",
-                    "name": "Method1",
-                    "declaration": """\
-    
-    (* Comment before first method *)
-    // Another comment
-    METHOD Method1
-""",
-                    "children": [],
-                    "implementation": """\
-        x := 1;
-    END_METHOD
-"""
-                },
-                {
-                    "type": "METHOD",
-                    "name": "Method2",
-                    "declaration": """\
-    
-    (* Comment before second method *)
-    METHOD Method2
-""",
-                    "children": [],
-                    "implementation": """\
-        x := 2;
-    END_METHOD
-"""
-                }
-            ],
-"type": "FUNCTION_BLOCK",
-            "name": "MethodComments",
-            "declaration": """\
-FUNCTION_BLOCK MethodComments
-    VAR
-        x : INT;
-    END_VAR
-""",
-            "implementation": """\
-    
-    (* This comment belongs to the body *)
-    x := 3;
-END_FUNCTION_BLOCK
-"""
-        }
 
-        text_lines = text.splitlines(True)
+        text_lines = self.original_file_input.splitlines(True)
         actual_tree = text_to_tree(transformed_element, text_lines)
 
-        self.assertMyDictEqual(actual_tree, expected_tree)
+        self.assertMyDictEqual(actual_tree, self.expected_tree)
 
+
+    def trest_tree_to_text(self):
+        self.assertEqual(metree_dumps(self.expected_tree), self.original_file_input)
 
 def text_to_tree(element, text_lines):
     """Convert IECElement to dictionary representation."""
