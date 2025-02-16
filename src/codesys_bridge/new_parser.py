@@ -46,9 +46,9 @@ def find_element_delimiters(text, newline_positions):
             |
             //[^\n]*     # Single line comments
             |
-            "[^"]*"      # Double quoted strings
+            "(?:[^"$]|\$")*(?<![$])"      # Double quoted strings with escaped quotes
             |
-            '[^']*'      # Single quoted strings
+            '(?:[^'$]|\$')*(?<![$])'      # Single quoted strings with escaped quotes
         )
         |
         # Opening elements with names
