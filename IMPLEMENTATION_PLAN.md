@@ -120,9 +120,41 @@ Methods and Actions are children of their FUNCTION_BLOCK or INTERFACE.
 We should create 
 
 
+## Reading the leaves with either textual declaration or textual implementation
+Machine Expert has a hierarchy of classes (ScriptObject -> ScriptTreeObject, ScriptTextDocument, ScriptTextualObjectMarker etc... see the dir scriptengine) which have:
+get_children
+get_name
+@property has_textual_declaration
+@property has_textual_implementation
+@property type
+
+## writing the leaves with either textual declaration or textual implementation
+In the folder/file structure the first level below are leaves (files).
+In the ME project, the hiararchy continues to be distinguished and has to be created object by object:
+
+create_dut - I think by calling textual_declaration.replace(new_text), the type will change to correct (STRUCT, ENUM, UNION)
+create_pou(name, PouType.FUNCTION_BLOCK)
+        create_method(name)
+        create_action(name)
+create_pou(name, PouType.INTERFACE)
+        create_method(name)
+        create_action(name)
+create_pou(name, PouType.FUNCTION)
+create_pou(name, PouType.PROGRAM)
+create_gvl(name)
+
+### syncing
+Means, if the ME project has a object with a given name, it should be replaced. If it doesn't have it, it should be created. If there are objects which have textual_declaration or textual_implementation, they should be deleted and don't exist in the file/folder structure.
+    
+
+# TODOvelone
+
+I now have a python tree structure. the creation of that I'll transfrom to create text_lines and MockMETreeElement....
+Along with changing the methods which can dump file content.
 
 
-we need these trasformations:
+
+
 
 ME project_tree to folder/file structure
 folder/file structure to ME project_tree
