@@ -27,4 +27,4 @@ dev = [
 ]
 
 [project.scripts]
-codesys-bridge = "cs_install.codesys_script_install:main"
+codesys-bridge = "codesys_bridge.codesys_script_install:main"
