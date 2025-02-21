@@ -3,9 +3,9 @@
 from __future__ import print_function
 import os
 import shutil
-import time
-import subprocess
 import scriptengine # type: ignore
+
+
 
 print("Start export!")
 
@@ -188,18 +188,4 @@ for obj in scriptengine.projects.primary.get_children():
 with open(os.path.join(save_folder, "s.txt"), "w") as f:
     f.write(str(info))
 
-# if has_repo:
-# 	os.chdir(save_folder)
-# 	si = subprocess.STARTUPINFO()
-# 	si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-# 	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" add .', startupinfo=si)
-# 	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" commit -m "'+time.strftime('%Y-%m-%d %H:%M',time.localtime(time.time()))+'"', startupinfo=si)
-# else:
-# 	os.chdir(save_folder)
-# 	si = subprocess.STARTUPINFO()
-# 	si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-# 	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" init', startupinfo=si)#'cd '+ save_folder + " && " + 'git init')
-# 	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" add .', startupinfo=si)
-
-# 	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" commit -m "'+time.strftime('%Y-%m-%d %H:%M',time.localtime(time.time()))+'"', startupinfo=si)
 print("Export to {0} finished.".format(save_folder))
