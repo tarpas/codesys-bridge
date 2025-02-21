@@ -146,56 +146,67 @@ def is_var_section(element_type):
 
 
 def get_declaration_and_implementation(element, text_lines):
-    declaration = []
-    implementation = []
-    
-    declaration = text_lines[element.start_segment.start_line - 1:element.start_segment.end_line]
-    implementation = text_lines[element.body_segment.start_line - 1:element.body_segment.end_line]
-
-    return declaration, implementation
-
-def get_subelements_text_lines(sub_elements, text_lines): # -> text lines
-    result = []
-    for sub in sub_elements:
-        result.extend(get_declaration_and_implementation(sub, text_lines))
-    return result
-
-def get_file_content(element, original_text):
     """
-    Get declaration and implementation text for Machine Expert.
+    Get declaration and implementation text from an IECElement.
     
     Args:
-        element (IECElement): The element to process
-        original_text (str): The original text that was parsed
+        element: IECElement
+        text_lines: List of text lines
         
     Returns:
-        tuple: (declaration_text, implementation_text)
+        tuple: (declaration_lines, implementation_lines)
     """
-    text_lines = original_text.splitlines(True)
-    declaration, implementation = get_declaration_and_implementation(element, text_lines)
-    sub_elements_text_lines = get_subelements_text_lines(element.sub_elements, text_lines)
-    return ''.join(declaration) + ''.join(sub_elements_text_lines) + ''.join(implementation)
+    declaration = text_lines[element.start_segment.start_line - 1:element.start_segment.end_line]
+    implementation = text_lines[element.body_segment.start_line - 1:element.body_segment.end_line]
+    return declaration, implementation
 
+def metree_dumps(element):
+    """
+    Convert a MockMETreeElement tree to its text representation.
+    
+    Args:
+        element (MockMETreeElement): The root element to convert
+        
+    Returns:
+        str: The complete text representation of the tree
+    """
+    result = []
+    result.append(element.textual_declaration.text)
+    for child in element.get_children():
+        result.append(metree_dumps(child))
+    result.append(element.textual_implementation.text)
+    return ''.join(result)
 
-
-class TextualRepresentation(object):
+class MockScriptTextDocument(object):
     def __init__(self, text):
         self.text = text
 
-class METreeElement(object):
-    def __init__(self, root_element, lines_list, textual_declaration, textual_implementation, children, type, name):
-        self.textual_declaration = TextualRepresentation(textual_declaration)
-        self.textual_implementation = TextualRepresentation(textual_implementation) 
-        self.children = children
-        self.type = type
-        self.name = name
+    def replace(self, new_text):
+        self.text = new_text
 
+class MockMETreeElement(object):
+    def __init__(self, element_type, element_name, declaration, implementation, text_lines):
+        """
+        Create a new MockMETreeElement.
+        
+        Args:
+            element_type (str): The type of the element
+            element_name (str): The name of the element
+            declaration (list[str]): The declaration text lines
+            implementation (list[str]): The implementation text lines
+            text_lines (list[str]): The original text lines
+        """
+        self.lines_list = text_lines
+        self.type = element_type
+        self.name = element_name
+        self.children = []
+        self.textual_declaration = MockScriptTextDocument(''.join(declaration))
+        self.textual_implementation = MockScriptTextDocument(''.join(implementation))
 
-    def get_children(self): # -> list of METreeElement
+    def get_children(self):  # -> list of METreeElement
         return self.children
 
-
-    def get_name(self): # str
+    def get_name(self):  # str
         return self.name
 
     @property
@@ -238,3 +249,29 @@ def merge_var_sections(element):
         body_segment=element.body_segment
     )
 
+def create_mock_me_tree(element_tree, text_lines):
+    """
+    Create a MockMETreeElement from an IECElement and text lines.
+    
+    Args:
+        element_tree (IECElement): The IEC element tree to convert
+        text_lines (list[str]): The original text lines
+        
+    Returns:
+        MockMETreeElement: The converted tree element
+    """
+    declaration, implementation = get_declaration_and_implementation(element_tree, text_lines)
+    mock_element = MockMETreeElement(
+        element_type=element_tree.type,
+        element_name=element_tree.name,
+        declaration=declaration,
+        implementation=implementation,
+        text_lines=text_lines
+    )
+    
+    for child in element_tree.sub_elements:
+        mock_element.children.append(create_mock_me_tree(child, text_lines))
+    
+    return mock_element
+
+    

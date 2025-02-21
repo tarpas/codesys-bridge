@@ -1,5 +1,12 @@
 import unittest
-from new_parser import merge_var_sections, parse_iec_element, get_declaration_and_implementation
+from new_parser import (
+    MockMETreeElement, 
+    merge_var_sections, 
+    parse_iec_element, 
+    get_declaration_and_implementation,
+    create_mock_me_tree,
+    metree_dumps
+)
 import difflib
 
 
@@ -354,8 +361,20 @@ END_FUNCTION_BLOCK
         self.assertMyDictEqual(actual_tree, self.expected_tree)
 
 
-    def trest_tree_to_text(self):
-        self.assertEqual(metree_dumps(self.expected_tree), self.original_file_input)
+    def test_element_tree_to_mock_me_tree_element(self):
+        element = parse_iec_element(self.original_file_input)
+        transformed_element = merge_var_sections(element)
+        text_lines = self.original_file_input.splitlines(True)
+        mocked_tree = create_mock_me_tree(transformed_element, text_lines)
+
+
+    def test_tree_to_text(self):
+        element = parse_iec_element(self.original_file_input)
+        transformed_element = merge_var_sections(element)
+        text_lines = self.original_file_input.splitlines(True)
+        mocked_tree = create_mock_me_tree(transformed_element, text_lines)
+        self.assertEqual(metree_dumps(mocked_tree), self.original_file_input)
+        print(metree_dumps(mocked_tree))
 
 def text_to_tree(element, text_lines):
     """Convert IECElement to dictionary representation."""
