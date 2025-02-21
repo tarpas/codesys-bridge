@@ -47,11 +47,11 @@ def install_to_directory(path, config_entry, is_codesys=False):
     print(f"Copied export_icon.ico to {path}")
     
     # For CODESYS, copy the script file to the destination
-    script_path = os.path.join(current_dir, 'codesys_bridge_script.py')
+    script_path = os.path.join(current_dir, 'cs_export.py')
     if is_codesys:
-        shutil.copy2(script_path, os.path.join(path, 'codesys_bridge_script.py'))
-        print(f"Copied codesys_bridge_script.py to {path}")
-        config_entry["Path"] = 'codesys_bridge_script.py'  # Just the filename for CODESYS
+        shutil.copy2(script_path, os.path.join(path, 'cs_export.py'))
+        print(f"Copied cs_export.py to {path}")
+        config_entry["Path"] = 'cs_export.py'  # Just the filename for CODESYS
     else:
         # For Machine Expert, use the original script location
         config_entry["Path"] = script_path
