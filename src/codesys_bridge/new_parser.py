@@ -1,5 +1,5 @@
-# encoding: utf-8
-from __future__ import print_function
+# -*- coding: utf-8 -*-
+from __future__ import print_function, unicode_literals
 import re
 from bisect import bisect_right
 from collections import namedtuple
@@ -101,7 +101,7 @@ def build_element_tree(delimiters, start_idx=0):
     delimiter = delimiters[start_idx]
     
     # We should never start parsing from an END_* element
-    assert not delimiter.type.startswith('END_'), "Unexpected END_* element at start: "
+    assert not delimiter.type.startswith('END_'), "Unexpected END_* element at start"
         
     # Find matching END element
     # VAR sections all use END_VAR
@@ -134,7 +134,7 @@ def build_element_tree(delimiters, start_idx=0):
         )
     ), end_idx + 1
 
-def parse_iec_element(text,):
+def parse_iec_element(text):
     newline_positions = find_newline_positions(text)
     element_delimiters = find_element_delimiters(text, newline_positions)
     root_element, _ = build_element_tree(element_delimiters)                
@@ -203,10 +203,10 @@ class MockMETreeElement(object):
         self.textual_declaration = MockScriptTextDocument(''.join(declaration))
         self.textual_implementation = MockScriptTextDocument(''.join(implementation))
 
-    def get_children(self):  # -> list of METreeElement
+    def get_children(self):
         return self.children
 
-    def get_name(self):  # str
+    def get_name(self):
         return self.name
 
     @property
@@ -216,8 +216,6 @@ class MockMETreeElement(object):
     @property
     def has_textual_implementation(self):
         return self.textual_implementation.text != ''
-
-
 
 def merge_var_sections(element):
     """

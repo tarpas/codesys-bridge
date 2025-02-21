@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+from __future__ import print_function, unicode_literals
 import unittest
 from new_parser import (
     MockMETreeElement, 
@@ -306,14 +308,14 @@ END_FUNCTION_BLOCK
                 extra1 = keys1 - keys2
                 extra2 = keys2 - keys1
                 raise AssertionError(
-                    f"Keys don't match at path '{path}'\n"
-                    f"Only in first dict: {extra1}\n"
-                    f"Only in second dict: {extra2}"
+                    "Keys don't match at path '%s'\n"
+                    "Only in first dict: %s\n"
+                    "Only in second dict: %s" % (path, extra1, extra2)
                 )
             
             # Recursively compare values
             for k in d1:
-                new_path = f"{path}.{k}" if path else k
+                new_path = "%s.%s" % (path, k) if path else k
                 self.assertMyDictEqual(d1[k], d2[k], path=new_path)
         elif isinstance(d1, str) and isinstance(d2, str):
             if d1 != d2:
@@ -324,27 +326,26 @@ END_FUNCTION_BLOCK
                 diff = list(difflib.ndiff(d1.splitlines(keepends=True), d2.splitlines(keepends=True)))
                 visible_diff = [visualize_whitespace(line) for line in diff]
                 raise AssertionError(
-                    f"String difference at path '{path}':\n"
-                    + ''.join(visible_diff)
+                    "String difference at path '%s':\n%s" % (path, ''.join(visible_diff))
                 )
         else:
             # For non-dict, non-string values, do regular equality comparison
             if d1 != d2:
                 raise AssertionError(
-                    f"Values don't match at path '{path}'\n"
-                    f"First value: {d1}\n"
-                    f"Second value: {d2}"
+                    "Values don't match at path '%s'\n"
+                    "First value: %s\n"
+                    "Second value: %s" % (path, d1, d2)
                 )
 
     def dump_iec_element(self, element, indent=0):
         """Print a readable representation of an IECElement."""
         indent_str = "  " * indent
-        print(f"{indent_str}Type: {element.type}")
-        print(f"{indent_str}Name: {element.name}")
-        print(f"{indent_str}Start segment: {element.start_segment}")
-        print(f"{indent_str}Body segment: {element.body_segment}")
+        print("%sType: %s" % (indent_str, element.type))
+        print("%sName: %s" % (indent_str, element.name))
+        print("%sStart segment: %s" % (indent_str, element.start_segment))
+        print("%sBody segment: %s" % (indent_str, element.body_segment))
         if element.sub_elements:
-            print(f"{indent_str}Sub elements:")
+            print("%sSub elements:" % indent_str)
             for sub in element.sub_elements:
                 self.dump_iec_element(sub, indent + 1)
         print()
@@ -374,7 +375,7 @@ END_FUNCTION_BLOCK
         text_lines = self.original_file_input.splitlines(True)
         mocked_tree = create_mock_me_tree(transformed_element, text_lines)
         self.assertEqual(metree_dumps(mocked_tree), self.original_file_input)
-        print(metree_dumps(mocked_tree))
+
 
 def text_to_tree(element, text_lines):
     """Convert IECElement to dictionary representation."""
