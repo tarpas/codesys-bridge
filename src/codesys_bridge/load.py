@@ -8,7 +8,7 @@ from_folder=r'C:\Users\tibor\Documents\Pollak\MEProjects\me21d_git2\st_source'
 
 
 def check(func):
-    def wrapper(proj,path,name):  # 指定宇宙无敌参数
+	def wrapper(proj,path,name):  # 指定宇宙无敌参数
 		#call func
 		func(proj,path,name)
 		#check
@@ -18,7 +18,7 @@ def check(func):
 		#assert(found[0].is_folder, 'Found object is not a folder')
 		item = found[0]
 		return item
-    return wrapper  # 返回
+	return wrapper  # 返回
 
 
 def insert_text(proj,path,name):
