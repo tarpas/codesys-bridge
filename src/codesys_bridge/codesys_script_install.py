@@ -33,7 +33,7 @@ def get_installation_directories():
     
     return directories
 
-def install_to_directory(path, config_entry, is_codesys=False):
+def install_to_directory(path, config_entry, current_dir):
     """Install config and assets to a single directory"""
     print(f"\nInstalling to: {path}")
     
@@ -41,20 +41,14 @@ def install_to_directory(path, config_entry, is_codesys=False):
     os.makedirs(path, exist_ok=True)
     
     # Copy icon
-    current_dir = os.path.dirname(os.path.abspath(__file__))
     icon_path = os.path.join(current_dir, 'assets', 'export_icon.ico')
     shutil.copy2(icon_path, os.path.join(path, 'export_icon.ico'))
     print(f"Copied export_icon.ico to {path}")
     
-    # For CODESYS, copy the script file to the destination
     script_path = os.path.join(current_dir, 'cs_export.py')
-    if is_codesys:
-        shutil.copy2(script_path, os.path.join(path, 'cs_export.py'))
-        print(f"Copied cs_export.py to {path}")
-        config_entry["Path"] = 'cs_export.py'  # Just the filename for CODESYS
-    else:
-        # For Machine Expert, use the original script location
-        config_entry["Path"] = script_path
+    shutil.copy2(script_path, os.path.join(path, 'cs_export.py'))
+    print(f"Copied cs_export.py to {path}")
+    config_entry["Path"] = 'cs_export.py'  
     
     # Update or create config.json
     config_dest = os.path.join(path, 'config.json')
@@ -62,7 +56,6 @@ def install_to_directory(path, config_entry, is_codesys=False):
         with open(config_dest, 'r') as f:
             config = json.load(f)
         
-        # Update or add Git Support entry
         for i, entry in enumerate(config):
             if entry.get('Name') == "CodeSys Bridge Script":
                 config[i] = config_entry
@@ -79,33 +72,31 @@ def install_to_directory(path, config_entry, is_codesys=False):
         json.dump(config, f, indent=4)
 
 def copy_to_script_commands():
-    # Get the directory of the current script
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Prepare our config entry
-    git_support_entry = {
+    toolbar_export_entry = {
         "Name": "CodeSys Bridge Script",
         "Desc": "CodeSys Bridge Script",
         "Icon": "export_icon.ico",
         "Path": ""  # Will be set in install_to_directory
     }
     
-    # Get all installation directories
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    print("Source directory: ", current_dir)
+
     directories = get_installation_directories()
     
     if not directories:
         print("No installation directories found!")
         return
     
-    # Install to each directory
     for directory in directories:
-        # Check if this is a CODESYS directory
-        is_codesys = 'CODESYS' in directory
-        install_to_directory(directory, git_support_entry.copy(), is_codesys)
+        install_to_directory(directory, toolbar_export_entry.copy(), current_dir)
 
 def main():
     if not is_admin():
         # ShellExecuteW returns an HINSTANCE (int) > 32 if successful
+        print("Running {} as admin".format(sys.argv[0]))
         result = ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.argv[0], " ".join(sys.argv), None, 1)
         if result <= 32:  # Error codes are <= 32
             error_messages = {
@@ -118,13 +109,14 @@ def main():
         sys.exit(0)
     
     try:
+        print(sys.path)
         copy_to_script_commands()
         print("Successfully installed script commands and assets")
     except Exception as e:
         import traceback
         print(f"Error during installation: {e}")
         traceback.print_exc()
-        
+    finally:    
         input("Press Enter to exit...")
 
 
