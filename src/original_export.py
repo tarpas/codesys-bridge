@@ -55,16 +55,16 @@ if not os.path.exists(save_folder):
     os.makedirs(save_folder)
 else:
     directory_list = os.listdir(save_folder)
-    for directory_entry in directory_list:
-        if not directory_entry.startswith("."):
-            sub_path = os.path.join(save_folder, directory_entry)
+    for uknown_ot_file in directory_list:
+        if not uknown_ot_file.startswith("."):
+            sub_path = os.path.join(save_folder, uknown_ot_file)
             if os.path.isdir(sub_path):
                 shutil.rmtree(sub_path)
             else:
                 os.remove(sub_path)
 
 
-uknown_object_types = defaultdict(lambda :[])
+unknown_object_types = defaultdict(lambda :[])
 
 type_dist={
 '792f2eb6-721e-4e64-ba20-bc98351056db':'pm',  #property method
@@ -87,17 +87,13 @@ type_dist={
 'c3fc9989-e24b-4002-a2c7-827a0a2595f4': 'implicit',
 };
 
-def save(text, path, name, tp):
-	if not tp:
-		tp = ""
-	else:
-		tp = ".st"
-	with open(os.path.join(path, name+tp), "w") as f:
+def save(text, path, name):
+	with open(os.path.join(path, name + ".st"), "w") as f:
 		f.write(text.encode('utf-8'))
 
 
 def walk_export_tree(treeobj, depth, path):
-	global uknown_object_types
+	global unknown_object_types
 	curpath=path 
 	
 	text_representation=''
@@ -109,11 +105,11 @@ def walk_export_tree(treeobj, depth, path):
 	if type_guid in type_dist:
 		object_type = type_dist[type_guid]
 	else:
-		uknown_object_types[type_guid].append(name)
+		unknown_object_types[type_guid].append(name)
 		
 	if treeobj.is_device:
-		deviceid = treeobj.get_device_identification()
-		text_representation = 'type='+str(deviceid.type) +'\nid=' +str(deviceid.id) + '\nver='+ str(deviceid.version)
+		exports=[treeobj]
+		projects.primary.export_native(exports,os.path.join(curpath,name + '.xml'))
 
 	if treeobj.has_textual_declaration :
 		a=treeobj.textual_declaration
@@ -125,11 +121,11 @@ def walk_export_tree(treeobj, depth, path):
 			
 	if treeobj.is_task :
 		exports=[treeobj]
-		projects.primary.export_native(exports,os.path.join(curpath,name+'.task'))
+		projects.primary.export_native(exports,os.path.join(curpath,name + '.task'))
 	
 	if treeobj.is_libman:
 		exports=[treeobj]
-		projects.primary.export_native(exports,os.path.join(curpath,name+'.lib'))
+		projects.primary.export_native(exports,os.path.join(curpath,name + '.lib'))
 	
 	if treeobj.is_textlist:
 		treeobj.export(os.path.join(curpath,name+'.tl'))
@@ -146,7 +142,7 @@ def walk_export_tree(treeobj, depth, path):
 			os.makedirs(curpath)
 			
 	if text_representation:
-		save(text_representation, curpath, name, object_type)
+		save(text_representation, curpath, name)
 
 	for child in treeobj.get_children(False):
 		walk_export_tree(child, depth+1,curpath)
@@ -155,7 +151,7 @@ def walk_export_tree(treeobj, depth, path):
 for obj in projects.primary.get_children():
     walk_export_tree(obj,0,save_folder)
 
-with open(os.path.join(save_folder,'unknown_object_types.txt'),'w') as directory_entry:
-	directory_entry.write(str(uknown_object_types))
+with open(os.path.join(save_folder,'unknown_object_types.txt'),'w') as unknown_ot_file:
+    unknown_ot_file.write(str(dict(unknown_object_types)))
 
 print("--- Script finished. ---")
