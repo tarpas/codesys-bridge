@@ -42,9 +42,6 @@ SoftMotion_General_Axis_Pool=Guid('e9159722-55bc-49e5-8034-fbd278ef718f')
 
 print("--- Saving files in the project: ---")
 
-# git
-has_repo = False
-
 # Get project path and set save folder to st_source subdirectory
 project_path = scriptengine.projects.primary.path
 parent_dir = os.path.dirname(os.path.dirname(project_path))  # Go up one more level
@@ -66,10 +63,8 @@ else:
                 shutil.rmtree(sub_path)
             else:
                 os.remove(sub_path)
-        elif f == ".git":
-            has_repo = True
 
-info = {}
+unknown_object_types = {}
 
 type_dist = {
     "792f2eb6-721e-4e64-ba20-bc98351056db": "pm",  # property method
@@ -101,53 +96,26 @@ def save(text, path, name, tp):
         f.write(text.encode("utf-8"))
 
 
-"""
-def get_mtype(a):
-	b=a.text
-	b=b.split("\n")
-	for a in b: 
-		if a.find('FUNCTION_BLOCK ') >=0 :
-			return "fb"
-		elif a.find("FUNCTION ") >=0:
-			return "fct"
-		elif a.find('METHOD ')>=0 :
-			return "m"
-		elif a.find("INTERFACE ")>=0:
-			return "itf"
-		elif a.find("TYPE ")>=0:
-			#
-			return "tp"
-		elif a.find("PROPERTY ")>=0 or a.find("PROPERTY\r\n")>=0:
-			return "prop"
-		elif a.find("PROGRAM ")>=0 or a.find("PROGRAM\r\n")>=0:
-			return "prg"
-		elif a.find("VAR_GLOBAL")>=0 or a.find("VAR_CONFIG") >=0:
-			return 'gvl'
-	return ""
-"""
-
-
-def print_tree(treeobj, depth, path):
-    global info
+def walk_export_tree(treeobj, depth, path):
+    global unknown_object_types
     # record current Path
     curpath = path
-    isfolder = False
 
-    t = ""  # text
-    tp = ""  # type
+    text_representation = ""  # text
+    object_type = ""  # type
 
     # get object name
     name = treeobj.get_name(False)
-    id = treeobj.type.ToString()
+    type_guid = treeobj.type.ToString()
 
-    if id in type_dist:
-        tp = type_dist[treeobj.type.ToString()]
+    if type_guid in type_dist:
+        object_type = type_dist[type_guid]
     else:
-        info[id] = name
+        unknown_object_types[type_guid] = name
 
     if treeobj.is_device:
         deviceid = treeobj.get_device_identification()
-        t = (
+        text_representation = (
             "type="
             + str(deviceid.type)
             + "\nid="
@@ -156,26 +124,19 @@ def print_tree(treeobj, depth, path):
             + str(deviceid.version)
         )
 
-    try:
-        if treeobj.is_folder:
-            # system.ui.prompt('folder:'+u, PromptChoice.YesNo, PromptResult.Yes)
-            isfolder = true
-            pass
-    except:
-        pass
 
     if treeobj.has_textual_declaration:
-        t = t + "(*#-#-#-#-#-#-#-#-#-#---Declaration---#-#-#-#-#-#-#-#-#-#-#-#-#*)\r\n"
+        text_representation = text_representation + "(*#-#-#-#-#-#-#-#-#-#---Declaration---#-#-#-#-#-#-#-#-#-#-#-#-#*)\r\n"
         a = treeobj.textual_declaration
-        t = t + a.text
+        text_representation = text_representation + a.text
 
     if treeobj.has_textual_implementation:
-        t = (
-            t
+        text_representation = (
+            text_representation
             + "(*#-#-#-#-#-#-#-#-#-#---Implementation---#-#-#-#-#-#-#-#-#-#-#-#-#*)\r\n"
         )
         a = treeobj.textual_implementation
-        t = t + a.text
+        text_representation = text_representation + a.text
 
     """	
 	if treeobj.is_task_configuration:
@@ -197,53 +158,28 @@ def print_tree(treeobj, depth, path):
 
     children = treeobj.get_children(False)
 
-    if children or isfolder:
-        if tp:
-            curpath = os.path.join(curpath, name + "." + tp)
+    if children:
+        if object_type:
+            curpath = os.path.join(curpath, name + "." + object_type)
         else:
             curpath = os.path.join(curpath, name)
 
         if not os.path.exists(curpath):
             os.makedirs(curpath)
 
-    if t:
-        save(t, curpath, name, tp)
+    if text_representation:
+        save(text_representation, curpath, name, object_type)
 
     for child in treeobj.get_children(False):
-        print_tree(child, depth + 1, curpath)
+        walk_export_tree(child, depth + 1, curpath)
 
 
 for obj in projects.primary.get_children():
-    print_tree(obj, 0, save_folder)
+    walk_export_tree(obj, 0, save_folder)
 
-with open(os.path.join(save_folder, "s.txt"), "w") as f:
-    f.write(str(info))
+with open(os.path.join(save_folder, "unknown_object_types.txt"), "w") as f:
+    f.write(str(unknown_object_types))
 
-if has_repo:
-    os.chdir(save_folder)
-    si = subprocess.STARTUPINFO()
-    si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-    subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" add .', startupinfo=si)
-    subprocess.call(
-        '"D:\\Program Files\\Git\\bin\\git.exe" commit -m "'
-        + time.strftime("%Y-%m-%d %H:%M", time.localtime(time.time()))
-        + '"',
-        startupinfo=si,
-    )
-else:
-    os.chdir(save_folder)
-    si = subprocess.STARTUPINFO()
-    si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-    subprocess.call(
-        '"D:\\Program Files\\Git\\bin\\git.exe" init', startupinfo=si
-    )  #'cd '+ save_folder + " && " + 'git init')
-    subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" add .', startupinfo=si)
 
-    subprocess.call(
-        '"D:\\Program Files\\Git\\bin\\git.exe" commit -m "'
-        + time.strftime("%Y-%m-%d %H:%M", time.localtime(time.time()))
-        + '"',
-        startupinfo=si,
-    )
 print("--- Script finished. ---")
 system.ui.info("save ok")
