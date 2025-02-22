@@ -2,6 +2,7 @@
 # encoding:utf-8
 # We enable the new python 3 print syntax
 from __future__ import print_function
+from collections import defaultdict
 import os
 import shutil
 import time
@@ -41,27 +42,29 @@ SoftMotion_General_Axis_Pool=Guid('e9159722-55bc-49e5-8034-fbd278ef718f')
 
 print("--- Saving files in the project: ---")
 
-# git 
-has_repo=False
-
-save_folder=r'C:\Users\tibor\Documents\Pollak\MEProjects\me21d_git\st_source'
+# Get project path and set save folder to st_source subdirectory
+project_path = projects.primary.path
+parent_dir = os.path.dirname(os.path.dirname(project_path))  # Go up one more level
+save_folder = os.path.join(
+    parent_dir,
+    os.path.splitext(os.path.basename(project_path))[0] + "_git",
+    "st_source",
+)
 
 if not os.path.exists(save_folder):
-	os.makedirs(save_folder) 
+    os.makedirs(save_folder)
 else:
-	#非空文件夹 删除多余
-	a=os.listdir(save_folder)
-	for f in a:
-		if not f.startswith("."): #保留 svn,git 目录
-			sub_path= os.path.join(save_folder,f)
-			if os.path.isdir(sub_path):
-				shutil.rmtree(sub_path)
-			else:
-				os.remove(sub_path)
-		elif f==".git":
-			has_repo=True
+    directory_list = os.listdir(save_folder)
+    for directory_entry in directory_list:
+        if not directory_entry.startswith("."):
+            sub_path = os.path.join(save_folder, directory_entry)
+            if os.path.isdir(sub_path):
+                shutil.rmtree(sub_path)
+            else:
+                os.remove(sub_path)
 
-info={}
+
+uknown_object_types = defaultdict(lambda :[])
 
 type_dist={
 '792f2eb6-721e-4e64-ba20-bc98351056db':'pm',  #property method
@@ -84,89 +87,46 @@ type_dist={
 'c3fc9989-e24b-4002-a2c7-827a0a2595f4': 'implicit',
 };
 
-def save(text,path,name,tp):
+def save(text, path, name, tp):
 	if not tp:
-		tp=''
+		tp = ""
 	else:
-		tp='.st'
-	with open(os.path.join(path,name+tp),'w') as f:
+		tp = ".st"
+	with open(os.path.join(path, name+tp), "w") as f:
 		f.write(text.encode('utf-8'))
-'''
-def get_mtype(a):
-	b=a.text
-	b=b.split("\n")
-	for a in b: 
-		if a.find('FUNCTION_BLOCK ') >=0 :
-			return "fb"
-		elif a.find("FUNCTION ") >=0:
-			return "fct"
-		elif a.find('METHOD ')>=0 :
-			return "m"
-		elif a.find("INTERFACE ")>=0:
-			return "itf"
-		elif a.find("TYPE ")>=0:
-			#
-			return "tp"
-		elif a.find("PROPERTY ")>=0 or a.find("PROPERTY\r\n")>=0:
-			return "prop"
-		elif a.find("PROGRAM ")>=0 or a.find("PROGRAM\r\n")>=0:
-			return "prg"
-		elif a.find("VAR_GLOBAL")>=0 or a.find("VAR_CONFIG") >=0:
-			return 'gvl'
-	return ""
-'''			
-	
-def print_tree(treeobj, depth,path):
-	global info
-	#record current Path
+
+
+def walk_export_tree(treeobj, depth, path):
+	global uknown_object_types
 	curpath=path 
-	isfolder=False
 	
-	t='' #text
-	tp='' #type
+	text_representation=''
+	object_type=''
 	
-	# get object name
 	name = treeobj.get_name(False)
-	id = treeobj.type.ToString()
+	type_guid = treeobj.type.ToString()
 	
-	if id in type_dist:
-		tp = type_dist[treeobj.type.ToString()]
+	if type_guid in type_dist:
+		object_type = type_dist[type_guid]
 	else:
-		info[id]=name
-		
+		uknown_object_types[type_guid].append(name)
 		
 	if treeobj.is_device:
 		deviceid = treeobj.get_device_identification()
-		t = 'type='+str(deviceid.type) +'\nid=' +str(deviceid.id) + '\nver='+ str(deviceid.version)
-
-	try:
-		if treeobj.is_folder :
-			#system.ui.prompt('folder:'+u, PromptChoice.YesNo, PromptResult.Yes)
-			isfolder=true
-			pass
-	except:
-		pass
+		text_representation = 'type='+str(deviceid.type) +'\nid=' +str(deviceid.id) + '\nver='+ str(deviceid.version)
 
 	if treeobj.has_textual_declaration :
 		a=treeobj.textual_declaration
-		t=t+a.text
+		text_representation=text_representation+a.text
 		
 	if treeobj.has_textual_implementation:
 		a=treeobj.textual_implementation
-		t=t+a.text
-		
-	'''	
-	if treeobj.is_task_configuration:
-		exports=[treeobj]
-		projects.primary.export_native(exports,os.path.join(curpath,name+'.tc'))
-		
-	'''
-	
+		text_representation=text_representation+a.text
+			
 	if treeobj.is_task :
 		exports=[treeobj]
 		projects.primary.export_native(exports,os.path.join(curpath,name+'.task'))
 	
-		
 	if treeobj.is_libman:
 		exports=[treeobj]
 		projects.primary.export_native(exports,os.path.join(curpath,name+'.lib'))
@@ -176,60 +136,26 @@ def print_tree(treeobj, depth,path):
 		
 	children = treeobj.get_children(False)
 
-	if children or isfolder:
-		if tp:
-			curpath=os.path.join(curpath,name+'.'+tp)
+	if children:
+		if object_type:
+			curpath=os.path.join(curpath,name+'.'+object_type)
 		else:
 			curpath=os.path.join(curpath,name)
 		
 		if not os.path.exists(curpath):
 			os.makedirs(curpath)
 			
-	if t:
-		save(t,curpath,name,tp)
+	if text_representation:
+		save(text_representation, curpath, name, object_type)
 
 	for child in treeobj.get_children(False):
-		print_tree(child, depth+1,curpath)
+		walk_export_tree(child, depth+1,curpath)
 		
 
 for obj in projects.primary.get_children():
-    print_tree(obj,0,save_folder)
+    walk_export_tree(obj,0,save_folder)
 
-project_svn = projects.primary.svn
+with open(os.path.join(save_folder,'unknown_object_types.txt'),'w') as directory_entry:
+	directory_entry.write(str(uknown_object_types))
 
-print("start update")
-version_summary = project_svn.get_version_summary()
-print("version_summary.min_version: {}".format(version_summary.min_version))
-project_svn.update()
-print("end update")
-
-print("dir(projects): {} {}".format(projects.primary, dir(project_svn)))
-
-with open(os.path.join(save_folder,'s.txt'),'w') as f:
-	f.write(str(info))
-
-# if has_repo:
-# 	os.chdir(save_folder)
-# 	si = subprocess.STARTUPINFO()
-# 	si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-# 	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" add .', startupinfo=si)
-# 	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" commit -m "'+time.strftime('%Y-%m-%d %H:%M',time.localtime(time.time()))+'"', startupinfo=si)
-# else:
-# 	os.chdir(save_folder)
-# 	si = subprocess.STARTUPINFO()
-# 	si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-# 	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" init', startupinfo=si)#'cd '+ save_folder + " && " + 'git init')
-# 	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" add .', startupinfo=si)
-
-# 	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" commit -m "'+time.strftime('%Y-%m-%d %H:%M',time.localtime(time.time()))+'"', startupinfo=si)
 print("--- Script finished. ---")
-
-
-def update_project_svn():
-	def set_username(req):
-		req.username = username
-		req.password = password
-		req.save = True # Optional
-
-	svn.auth_username_password += set_username
-	svn.update()
