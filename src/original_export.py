@@ -44,7 +44,7 @@ print("--- Saving files in the project: ---")
 # git 
 has_repo=False
 
-save_folder=r'D:\Gitlab\codesys\Yao'
+save_folder=r'C:\Users\tibor\Documents\Pollak\MEProjects\me21d_git\st_source'
 
 if not os.path.exists(save_folder):
 	os.makedirs(save_folder) 
@@ -80,14 +80,15 @@ type_dist={
 'ae1de277-a207-4a28-9efb-456c06bd52f3':'tc',   #task configuration
 'f8a58466-d7f6-439f-bbb8-d4600e41d099':'m',    #method with ret
 '261bd6e6-249c-4232-bb6f-84c2fbeef430':'gvl',   #gvl_Persistent
-'98a2708a-9b18-4f31-82ed-a1465b24fa2d':'task'
+'98a2708a-9b18-4f31-82ed-a1465b24fa2d':'task',
+'c3fc9989-e24b-4002-a2c7-827a0a2595f4': 'implicit',
 };
 
 def save(text,path,name,tp):
 	if not tp:
 		tp=''
 	else:
-		tp='.'+tp
+		tp='.st'
 	with open(os.path.join(path,name+tp),'w') as f:
 		f.write(text.encode('utf-8'))
 '''
@@ -147,12 +148,10 @@ def print_tree(treeobj, depth,path):
 		pass
 
 	if treeobj.has_textual_declaration :
-		t=t+'(*#-#-#-#-#-#-#-#-#-#---Declaration---#-#-#-#-#-#-#-#-#-#-#-#-#*)\r\n'
 		a=treeobj.textual_declaration
 		t=t+a.text
 		
 	if treeobj.has_textual_implementation:
-		t=t+'(*#-#-#-#-#-#-#-#-#-#---Implementation---#-#-#-#-#-#-#-#-#-#-#-#-#*)\r\n'
 		a=treeobj.textual_implementation
 		t=t+a.text
 		
@@ -196,22 +195,41 @@ def print_tree(treeobj, depth,path):
 for obj in projects.primary.get_children():
     print_tree(obj,0,save_folder)
 
+project_svn = projects.primary.svn
+
+print("start update")
+version_summary = project_svn.get_version_summary()
+print("version_summary.min_version: {}".format(version_summary.min_version))
+project_svn.update()
+print("end update")
+
+print("dir(projects): {} {}".format(projects.primary, dir(project_svn)))
+
 with open(os.path.join(save_folder,'s.txt'),'w') as f:
 	f.write(str(info))
 
-if has_repo:
-	os.chdir(save_folder)
-	si = subprocess.STARTUPINFO()
-	si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" add .', startupinfo=si)
-	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" commit -m "'+time.strftime('%Y-%m-%d %H:%M',time.localtime(time.time()))+'"', startupinfo=si)
-else:
-	os.chdir(save_folder)
-	si = subprocess.STARTUPINFO()
-	si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" init', startupinfo=si)#'cd '+ save_folder + " && " + 'git init')
-	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" add .', startupinfo=si)
+# if has_repo:
+# 	os.chdir(save_folder)
+# 	si = subprocess.STARTUPINFO()
+# 	si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+# 	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" add .', startupinfo=si)
+# 	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" commit -m "'+time.strftime('%Y-%m-%d %H:%M',time.localtime(time.time()))+'"', startupinfo=si)
+# else:
+# 	os.chdir(save_folder)
+# 	si = subprocess.STARTUPINFO()
+# 	si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+# 	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" init', startupinfo=si)#'cd '+ save_folder + " && " + 'git init')
+# 	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" add .', startupinfo=si)
 
-	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" commit -m "'+time.strftime('%Y-%m-%d %H:%M',time.localtime(time.time()))+'"', startupinfo=si)
+# 	subprocess.call('"D:\\Program Files\\Git\\bin\\git.exe" commit -m "'+time.strftime('%Y-%m-%d %H:%M',time.localtime(time.time()))+'"', startupinfo=si)
 print("--- Script finished. ---")
-system.ui.info('save ok')
+
+
+def update_project_svn():
+	def set_username(req):
+		req.username = username
+		req.password = password
+		req.save = True # Optional
+
+	svn.auth_username_password += set_username
+	svn.update()
