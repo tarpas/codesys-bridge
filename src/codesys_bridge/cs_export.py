@@ -268,7 +268,7 @@ def is_var_section(element_type):
     return element_type.startswith("VAR_") or element_type == "VAR"
 
 
-def get_declaration_and_implementation(element, text_lines):
+def get_declaration_and_implementation(element, text_lines, deindent_level=0):
     """
     Get declaration and implementation text from an IECElement.
 
@@ -279,12 +279,21 @@ def get_declaration_and_implementation(element, text_lines):
     Returns:
         tuple: (declaration_lines, implementation_lines)
     """
+    # Get raw lines
     declaration = text_lines[
         element.start_segment.start_line - 1 : element.start_segment.end_line
     ]
     implementation = text_lines[
         element.body_segment.start_line - 1 : element.body_segment.end_line
     ]
+    
+    if implementation and implementation[0].isspace():
+        implementation = implementation[1:]
+
+    # Remove up to 4 spaces from the beginning of each line
+    declaration = [line[deindent_level * 4 :] if line.startswith("    " * deindent_level) else line for line in declaration]
+    implementation = [line[(deindent_level + 1) * 4 :] if line.startswith("    " * (deindent_level + 1)) else line for line in implementation]
+
     if element.type in {"FUNCTION_BLOCK", "FUNCTION", "INTERFACE", "PROGRAM", "METHOD", "ACTION"}:
         implementation = implementation[:-1]
     return declaration, implementation
@@ -322,32 +331,36 @@ def get_element_type(declaration_text):
     return None
 
 
-def metree_dumps(element):
+def indent_lines(text, indent_level):
+    lines = text.splitlines()
+    indented = ["    " * indent_level + line for line in lines]
+    return "\n".join(indented) + "\n"
+
+
+def metree_dumps(element, indent_level=0):
     """
-    Convert a MockMETreeElement tree to its text representation.
-
-    Args:
-        element (MockMETreeElement): The root element to convert
-
-    Returns:
-        str: The complete text representation of the tree
+    Convert a MockMETreeElement tree to its text representation and return as string.
     """
     result = []
     if element.has_textual_declaration:
-        result.append(element.textual_declaration.text)
-        if not(result[-1].endswith("\n")):
-            result[-1] += "\n"
+        result.append(indent_lines(element.textual_declaration.text, indent_level))
+    
     for child in element.get_children():
-        result.append(metree_dumps(child))
+        if result and result[-1] != "\n":
+            result.append("\n")
+        child_text = metree_dumps(child, indent_level + 1)
+        result.append(child_text)
+    
     if element.has_textual_implementation:
-        result.append(element.textual_implementation.text)
-        if not(result[-1].endswith("\n")):
-            result[-1] += "\n"
+        if result and result[-1] != "\n":
+            result.append("\n")
+        # Implementation is indented one more level than the declaration
+        result.append(indent_lines(element.textual_implementation.text, indent_level + 1))
         
         if element.has_textual_declaration:
             element_type = get_element_type(element.textual_declaration.text)
             if element_type:
-                result.append("END_{}\n".format(element_type))
+                result.append("    " * indent_level + "END_{}\n".format(element_type))
     return "".join(result)
 
 
@@ -425,7 +438,7 @@ def merge_var_sections(element):
     )
 
 
-def create_mock_me_tree(element_tree, text_lines):
+def create_mock_me_tree(element_tree, text_lines, deindent_level=0):
     """
     Create a MockMETreeElement from an IECElement and text lines.
 
@@ -437,7 +450,7 @@ def create_mock_me_tree(element_tree, text_lines):
         MockMETreeElement: The converted tree element
     """
     declaration, implementation = get_declaration_and_implementation(
-        element_tree, text_lines
+        element_tree, text_lines, deindent_level
     )
     mock_element = MockMETreeElement(
         element_type=element_tree.type,
@@ -448,7 +461,7 @@ def create_mock_me_tree(element_tree, text_lines):
     )
 
     for child in element_tree.sub_elements:
-        mock_element.children.append(create_mock_me_tree(child, text_lines))
+        mock_element.children.append(create_mock_me_tree(child, text_lines, deindent_level + 1))
 
     return mock_element
 

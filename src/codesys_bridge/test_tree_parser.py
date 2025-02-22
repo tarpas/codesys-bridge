@@ -251,6 +251,9 @@ END_FUNCTION_BLOCK
 
 
 class TestTreeToText(unittest.TestCase):
+    def setUp(self):
+        self.maxDiff = None
+
     original_file_input = """\
 FUNCTION_BLOCK MethodComments
     VAR
@@ -261,12 +264,12 @@ FUNCTION_BLOCK MethodComments
     // Another comment
     METHOD Method1
         x := 1;
-END_METHOD
+    END_METHOD
     
     (* Comment before second method *)
     METHOD Method2
         x := 2;
-END_METHOD
+    END_METHOD
     
     (* This comment belongs to the body *)
     x := 3;
@@ -286,7 +289,7 @@ END_FUNCTION_BLOCK
 """,
                 "children": [],
                 "implementation": """\
-        x := 1;
+    x := 1;
 """,
             },
             {
@@ -299,7 +302,7 @@ END_FUNCTION_BLOCK
 """,
                 "children": [],
                 "implementation": """\
-        x := 2;
+    x := 2;
 """,
             },
         ],
@@ -312,9 +315,8 @@ FUNCTION_BLOCK MethodComments
     END_VAR
 """,
         "implementation": """\
-    
-    (* This comment belongs to the body *)
-    x := 3;
+(* This comment belongs to the body *)
+x := 3;
 """,
     }
 
