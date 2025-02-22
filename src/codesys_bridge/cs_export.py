@@ -285,6 +285,8 @@ def get_declaration_and_implementation(element, text_lines):
     implementation = text_lines[
         element.body_segment.start_line - 1 : element.body_segment.end_line
     ]
+    if element.type in {"FUNCTION_BLOCK", "FUNCTION", "INTERFACE", "PROGRAM", "METHOD", "ACTION"}:
+        implementation = implementation[:-1]
     return declaration, implementation
 
 
@@ -312,8 +314,7 @@ def get_element_type(declaration_text):
         re.VERBOSE | re.IGNORECASE | re.MULTILINE | re.DOTALL,
     )
     
-    match = element_pattern.search(declaration_text)
-    if match:
+    for match in element_pattern.finditer(declaration_text):
         if match.group("named_element"):
             return match.group("named_element").upper()
         elif match.group("var_section"):

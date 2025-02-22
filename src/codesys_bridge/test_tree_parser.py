@@ -8,6 +8,7 @@ from cs_export import (
     get_declaration_and_implementation,
     create_mock_me_tree,
     metree_dumps,
+    get_element_type,
 )
 import difflib
 
@@ -260,12 +261,12 @@ FUNCTION_BLOCK MethodComments
     // Another comment
     METHOD Method1
         x := 1;
-    END_METHOD
+END_METHOD
     
     (* Comment before second method *)
     METHOD Method2
         x := 2;
-    END_METHOD
+END_METHOD
     
     (* This comment belongs to the body *)
     x := 3;
@@ -286,7 +287,6 @@ END_FUNCTION_BLOCK
                 "children": [],
                 "implementation": """\
         x := 1;
-    END_METHOD
 """,
             },
             {
@@ -300,7 +300,6 @@ END_FUNCTION_BLOCK
                 "children": [],
                 "implementation": """\
         x := 2;
-    END_METHOD
 """,
             },
         ],
@@ -316,7 +315,6 @@ FUNCTION_BLOCK MethodComments
     
     (* This comment belongs to the body *)
     x := 3;
-END_FUNCTION_BLOCK
 """,
     }
 
@@ -414,6 +412,51 @@ def text_to_tree(element, text_lines):
         "implementation": "".join(implementation),
     }
     return tree
+
+
+class TestGetElementType(unittest.TestCase):
+    def test_get_element_type(self):
+        test_cases = [
+            # Basic cases
+            (u"FUNCTION_BLOCK MyBlock", u"FUNCTION_BLOCK"),
+            (u"FUNCTION Calc", u"FUNCTION"),
+            (u"PROGRAM Main", u"PROGRAM"),
+            (u"METHOD DoSomething", u"METHOD"),
+            (u"TYPE MyType", u"TYPE"),
+            (u"INTERFACE IControl", u"INTERFACE"),
+            (u"ACTION MyAction", u"ACTION"),
+            
+            # VAR section cases
+            (u"VAR_INPUT", u"VAR_INPUT"),
+            (u"VAR_OUTPUT", u"VAR_OUTPUT"),
+            (u"VAR_IN_OUT", u"VAR_IN_OUT"),
+            (u"VAR_TEMP", u"VAR_TEMP"),
+            (u"VAR", u"VAR"),
+            (u"VAR_GLOBAL", u"VAR_GLOBAL"),
+            
+            # Cases with comments
+            (u"(* Comment *)\nFUNCTION_BLOCK MyBlock", u"FUNCTION_BLOCK"),
+            (u"// Line comment\nMETHOD Test", u"METHOD"),
+            (u"(* Multi-line\ncomment *)\nTYPE MyEnum", u"TYPE"),
+            
+            # Cases with whitespace
+            (u"\n\nFUNCTION   Spaced  ", u"FUNCTION"),
+            (u"\t\tPROGRAM\tMain\t", u"PROGRAM"),
+            
+            # Invalid/empty cases
+            (u"", None),
+            (u"Just some text", None),
+            (u"/* Invalid comment */", None),
+            
+        ]
+        
+        for declaration, expected_type in test_cases:
+            actual_type = get_element_type(declaration)
+            self.assertEqual(
+                actual_type, 
+                expected_type, 
+                "Failed for declaration: {0!r}".format(declaration)
+            )
 
 
 if __name__ == "__main__":
