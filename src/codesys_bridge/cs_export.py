@@ -57,8 +57,8 @@ def walk_export_tree(treeobj, depth, path):
     name = treeobj.get_name(False)
     type_guid = treeobj.type.ToString()
 
-    if type_guid in type_dist:
-        object_type = type_dist[type_guid]
+    if type_guid in guid_type:
+        object_type = guid_type[type_guid]
     else:
         unknown_object_types[type_guid].append(name)
 
@@ -87,20 +87,24 @@ def walk_export_tree(treeobj, depth, path):
 
     children = treeobj.get_children(False)
 
-    if children:
-        if object_type:
-            curpath = os.path.join(curpath, name + "." + object_type)
-        else:
+    if object_type in  {"pou", "gvl", "dut", "itf"}:
+        print("Calling save for {} {} {} ".format(object_type, curpath, name))
+        save(metree_dumps(treeobj), curpath, name)
+
+    elif children:
+        if object_type == "folder":
             curpath = os.path.join(curpath, name)
+        else:
+            curpath = os.path.join(curpath, name + "." + object_type)            
 
         if not os.path.exists(curpath):
             os.makedirs(curpath)
 
-    if text_representation:
-        save(text_representation, curpath, name)
+    print("Walked {} {} {} ".format(object_type, curpath, name))
 
-    for child in treeobj.get_children(False):
-        walk_export_tree(child, depth + 1, curpath)
+    if object_type not in  {"pou", "gvl", "dut", "itf"}:
+        for child in treeobj.get_children(False):
+            walk_export_tree(child, depth + 1, curpath)
 
 
 # Named tuples for structured data
@@ -295,10 +299,17 @@ def metree_dumps(element):
         str: The complete text representation of the tree
     """
     result = []
-    result.append(element.textual_declaration.text)
+    if element.has_textual_declaration:
+        result.append(element.textual_declaration.text)
+        if not(result[-1].endswith("\n")):
+            result[-1] += "\n"
     for child in element.get_children():
         result.append(metree_dumps(child))
-    result.append(element.textual_implementation.text)
+    if element.has_textual_implementation:
+        result.append(element.textual_implementation.text)
+        if not(result[-1].endswith("\n")):
+            result[-1] += "\n"
+        result.append("END_POU\n")
     return "".join(result)
 
 
@@ -430,7 +441,7 @@ if __name__ == "__main__":
 
     unknown_object_types = defaultdict(lambda: [])
 
-    type_dist = {
+    guid_type = {
         "792f2eb6-721e-4e64-ba20-bc98351056db": "pm",  # property method
         "2db5746d-d284-4425-9f7f-2663a34b0ebc": "dut",  # dut
         "adb5cb65-8e1d-4a00-b70a-375ea27582f3": "lib",  # lib manager
@@ -438,7 +449,7 @@ if __name__ == "__main__":
         "8ac092e5-3128-4e26-9e7e-11016c6684f2": "act",  # action
         "6f9dac99-8de1-4efc-8465-68ac443b7d08": "pou",  # pou
         "6654496c-404d-479a-aad2-8551054e5f1e": "itf",  # interface
-        "738bea1e-99bb-4f04-90bb-a7a567e74e3a": "",  # folder
+        "738bea1e-99bb-4f04-90bb-a7a567e74e3a": "folder",  # folder
         "ffbfa93a-b94d-45fc-a329-229860183b1d": "gvl",  # global var
         "5a3b8626-d3e9-4f37-98b5-66420063d91e": "prop",  # property
         "2bef0454-1bd3-412a-ac2c-af0f31dbc40f": "tl",  # textlist
