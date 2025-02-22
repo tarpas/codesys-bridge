@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, unicode_literals
 import unittest
-from new_parser import (
+from cs_export import (
     MockMETreeElement, 
     merge_var_sections, 
     parse_iec_element, 
