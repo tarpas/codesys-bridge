@@ -33,7 +33,7 @@ def get_installation_directories():
     
     return directories
 
-def install_to_directory(path, config_entry, current_dir):
+def install_to_directory(path, config_entry, current_dir, just_link=False):
     """Install config and assets to a single directory"""
     print(f"\nInstalling to: {path}")
     
@@ -46,10 +46,14 @@ def install_to_directory(path, config_entry, current_dir):
     print(f"Copied export_icon.ico to {path}")
     
     script_path = os.path.join(current_dir, 'cs_export.py')
-    shutil.copy2(script_path, os.path.join(path, 'cs_export.py'))
-    print(f"Copied cs_export.py to {path}")
-    config_entry["Path"] = 'cs_export.py'  
-    
+    if not just_link: # Codesys will refuse to run the script if it's not in ScriptLib or under.
+        shutil.copy2(script_path, os.path.join(path, 'cs_export.py'))
+        print(f"Copied cs_export.py to {path}")
+        config_entry["Path"] = 'cs_export.py'
+    else:
+        print(f"Linking cs_export.py to {path}")
+        config_entry["Path"] = script_path
+
     # Update or create config.json
     config_dest = os.path.join(path, 'config.json')
     if os.path.exists(config_dest):
@@ -91,13 +95,13 @@ def copy_to_script_commands():
         return
     
     for directory in directories:
-        install_to_directory(directory, toolbar_export_entry.copy(), current_dir)
+        install_to_directory(directory, toolbar_export_entry.copy(), current_dir, just_link=sys.argv[1] == "link")
 
 def main():
     if not is_admin():
         # ShellExecuteW returns an HINSTANCE (int) > 32 if successful
         print("Running {} as admin".format(sys.argv[0]))
-        result = ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.argv[0], " ".join(sys.argv), None, 1)
+        result = ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.argv[0], " ".join(sys.argv [1:]), None, 1)
         if result <= 32:  # Error codes are <= 32
             error_messages = {
                 2: "File not found",
