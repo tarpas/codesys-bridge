@@ -2,20 +2,19 @@
 from __future__ import print_function, unicode_literals
 import unittest
 from cs_export import (
-    MockMETreeElement, 
-    merge_var_sections, 
-    parse_iec_element, 
+    MockMETreeElement,
+    merge_var_sections,
+    parse_iec_element,
     get_declaration_and_implementation,
     create_mock_me_tree,
-    metree_dumps
+    metree_dumps,
 )
 import difflib
 
 
 class HighLevelTest(unittest.TestCase):
     def atest_text_to_tree(self):
-        text = (
-"""\
+        text = """\
 FUNCTION_BLOCK NestedBlock
     VAR
         x : INT;
@@ -30,36 +29,38 @@ FUNCTION_BLOCK NestedBlock
     
     x := 5;
 END_FUNCTION_BLOCK
-""")
+"""
         tree = merge_var_sections(parse_iec_element(text))
         self.assertEqual(tree.type, "FUNCTION_BLOCK")
         self.assertEqual(tree.name, "NestedBlock")
         self.assertEqual(len(tree.sub_elements), 1)
-        self.assertEqual(tree.declaration, """
+        self.assertEqual(
+            tree.declaration,
+            """
 FUNCTION_BLOCK NestedBlock
     VAR
         x : INT;
     END_VAR
-""")
-        self.assertEqual(tree.textual_implementation.text, (
-"""    
+""",
+        )
+        self.assertEqual(
+            tree.textual_implementation.text,
+            (
+                """    
     x := 5;
 END_FUNCTION_BLOCK
-"""))
-                         
-                         
+"""
+            ),
+        )
+
         method = tree.sub_elements[0]
         self.assertEqual(method.type, "METHOD")
 
         self.assertEqual(tree.sub_elements[0].type, "METHOD")
         self.assertEqual(tree.sub_elements[1].type, "VAR")
-        
-
-
 
 
 class TestTreeParser(unittest.TestCase):
-
     def test_simple_function_block(self):
         """Test parsing of a simple function block with no sub-elements"""
         text = """
@@ -75,7 +76,7 @@ END_FUNCTION_BLOCK
         self.assertEqual(element.start_segment.start_line, 1)
         self.assertEqual(element.start_segment.end_line, 2)
         self.assertEqual(element.body_segment.start_line, 3)
-        
+
     def test_function_block_with_var_sections(self):
         """Test parsing of a function block with VAR sections"""
         text = """
@@ -97,8 +98,11 @@ END_FUNCTION_BLOCK
         self.assertEqual(element.sub_elements[0].type, "VAR_INPUT")
         self.assertEqual(element.sub_elements[1].type, "VAR_OUTPUT")
         # Body should start after last VAR section
-        self.assertTrue(element.body_segment.start_line > element.sub_elements[1].body_segment.end_line)
-        
+        self.assertTrue(
+            element.body_segment.start_line
+            > element.sub_elements[1].body_segment.end_line
+        )
+
     def test_nested_elements(self):
         """Test parsing of nested elements (function block with method)"""
         text = """
@@ -122,7 +126,7 @@ END_FUNCTION_BLOCK
         method = next(e for e in element.sub_elements if e.type == "METHOD")
         self.assertEqual(method.name, "MyMethod")
         self.assertEqual(len(method.sub_elements), 1)  # VAR_INPUT
-        
+
     def test_type_definition(self):
         """Test parsing of a TYPE definition"""
         text = """
@@ -137,8 +141,7 @@ END_TYPE
         self.assertEqual(element.type, "TYPE")
         self.assertEqual(element.name, "MyStruct")
         self.assertEqual(len(element.sub_elements), 1)
-        
-            
+
     def test_comments_before_elements(self):
         """Test that comments before elements are included in the element's segment"""
         text = """
@@ -149,9 +152,13 @@ FUNCTION_BLOCK CommentedBlock
 END_FUNCTION_BLOCK
 """
         element = parse_iec_element(text)
-        self.assertEqual(element.start_segment.start_line, 1)  # Should include the (* *) comment
-        self.assertEqual(element.start_segment.end_line, 4)  # Should end after FUNCTION_BLOCK line
-        
+        self.assertEqual(
+            element.start_segment.start_line, 1
+        )  # Should include the (* *) comment
+        self.assertEqual(
+            element.start_segment.end_line, 4
+        )  # Should end after FUNCTION_BLOCK line
+
     def test_comments_before_var_sections(self):
         """Test that comments before VAR sections are included in their segment"""
         text = """
@@ -173,9 +180,13 @@ END_FUNCTION_BLOCK
         element = parse_iec_element(text)
         var_input = element.sub_elements[0]
         var_output = element.sub_elements[1]
-        self.assertEqual(var_input.start_segment.start_line, 3)  # Should include first comment
-        self.assertEqual(var_output.start_segment.start_line, 8)  # Should include second comment
-        
+        self.assertEqual(
+            var_input.start_segment.start_line, 3
+        )  # Should include first comment
+        self.assertEqual(
+            var_output.start_segment.start_line, 8
+        )  # Should include second comment
+
     def test_comments_between_elements(self):
         """Test that comments between elements are handled correctly"""
         text = """
@@ -202,9 +213,15 @@ END_FUNCTION_BLOCK
         element = parse_iec_element(text)
         methods = [e for e in element.sub_elements if e.type == "METHOD"]
         self.assertEqual(len(methods), 2)
-        self.assertEqual(methods[0].start_segment.start_line, 6)  # Should include first method's comments
-        self.assertEqual(methods[1].start_segment.start_line, 12)  # Should include second method's comments
-        self.assertEqual(element.body_segment.start_line, 17)  # Body should start at its comment
+        self.assertEqual(
+            methods[0].start_segment.start_line, 6
+        )  # Should include first method's comments
+        self.assertEqual(
+            methods[1].start_segment.start_line, 12
+        )  # Should include second method's comments
+        self.assertEqual(
+            element.body_segment.start_line, 17
+        )  # Body should start at its comment
 
     def test_inline_comments(self):
         """Test that inline comments are preserved in line counting"""
@@ -221,12 +238,18 @@ END_FUNCTION_BLOCK
         element = parse_iec_element(text)
         var_input = element.sub_elements[0]
         self.assertEqual(var_input.start_segment.start_line, 3)
-        self.assertEqual(var_input.start_segment.end_line, 3)  # Should end on VAR_INPUT line
-        self.assertEqual(var_input.body_segment.start_line, 4)  # Body starts at first declaration
-        self.assertEqual(var_input.body_segment.end_line, 6)  # Body ends at END_VAR line
+        self.assertEqual(
+            var_input.start_segment.end_line, 3
+        )  # Should end on VAR_INPUT line
+        self.assertEqual(
+            var_input.body_segment.start_line, 4
+        )  # Body starts at first declaration
+        self.assertEqual(
+            var_input.body_segment.end_line, 6
+        )  # Body ends at END_VAR line
+
 
 class TestTreeToText(unittest.TestCase):
-
     original_file_input = """\
 FUNCTION_BLOCK MethodComments
     VAR
@@ -250,53 +273,52 @@ END_FUNCTION_BLOCK
 """
 
     expected_tree = {
-                        "children": [
-                {
-                    "type": "METHOD",
-                    "name": "Method1",
-                    "declaration": """\
+        "children": [
+            {
+                "type": "METHOD",
+                "name": "Method1",
+                "declaration": """\
     
     (* Comment before first method *)
     // Another comment
     METHOD Method1
 """,
-                    "children": [],
-                    "implementation": """\
+                "children": [],
+                "implementation": """\
         x := 1;
     END_METHOD
-"""
-                },
-                {
-                    "type": "METHOD",
-                    "name": "Method2",
-                    "declaration": """\
+""",
+            },
+            {
+                "type": "METHOD",
+                "name": "Method2",
+                "declaration": """\
     
     (* Comment before second method *)
     METHOD Method2
 """,
-                    "children": [],
-                    "implementation": """\
+                "children": [],
+                "implementation": """\
         x := 2;
     END_METHOD
-"""
-                }
-            ],
-"type": "FUNCTION_BLOCK",
-            "name": "MethodComments",
-            "declaration": """\
+""",
+            },
+        ],
+        "type": "FUNCTION_BLOCK",
+        "name": "MethodComments",
+        "declaration": """\
 FUNCTION_BLOCK MethodComments
     VAR
         x : INT;
     END_VAR
 """,
-            "implementation": """\
+        "implementation": """\
     
     (* This comment belongs to the body *)
     x := 3;
 END_FUNCTION_BLOCK
-"""
-        }
-
+""",
+    }
 
     def assertMyDictEqual(self, d1, d2, msg=None, path=""):
         """Assert that two dictionaries are equal regardless of key order."""
@@ -312,7 +334,7 @@ END_FUNCTION_BLOCK
                     "Only in first dict: %s\n"
                     "Only in second dict: %s" % (path, extra1, extra2)
                 )
-            
+
             # Recursively compare values
             for k in d1:
                 new_path = "%s.%s" % (path, k) if path else k
@@ -321,12 +343,17 @@ END_FUNCTION_BLOCK
             if d1 != d2:
                 # Convert whitespace characters to visible symbols
                 def visualize_whitespace(s):
-                    return s.replace(' ', '·').replace('\t', '→').replace('\n', '↵\n')
-                
-                diff = list(difflib.ndiff(d1.splitlines(keepends=True), d2.splitlines(keepends=True)))
+                    return s.replace(" ", "·").replace("\t", "→").replace("\n", "↵\n")
+
+                diff = list(
+                    difflib.ndiff(
+                        d1.splitlines(keepends=True), d2.splitlines(keepends=True)
+                    )
+                )
                 visible_diff = [visualize_whitespace(line) for line in diff]
                 raise AssertionError(
-                    "String difference at path '%s':\n%s" % (path, ''.join(visible_diff))
+                    "String difference at path '%s':\n%s"
+                    % (path, "".join(visible_diff))
                 )
         else:
             # For non-dict, non-string values, do regular equality comparison
@@ -355,19 +382,16 @@ END_FUNCTION_BLOCK
 
         transformed_element = merge_var_sections(element)
 
-
         text_lines = self.original_file_input.splitlines(True)
         actual_tree = text_to_tree(transformed_element, text_lines)
 
         self.assertMyDictEqual(actual_tree, self.expected_tree)
-
 
     def test_element_tree_to_mock_me_tree_element(self):
         element = parse_iec_element(self.original_file_input)
         transformed_element = merge_var_sections(element)
         text_lines = self.original_file_input.splitlines(True)
         mocked_tree = create_mock_me_tree(transformed_element, text_lines)
-
 
     def test_tree_to_text(self):
         element = parse_iec_element(self.original_file_input)
@@ -379,15 +403,18 @@ END_FUNCTION_BLOCK
 
 def text_to_tree(element, text_lines):
     """Convert IECElement to dictionary representation."""
-    declaration, implementation = get_declaration_and_implementation(element, text_lines)
+    declaration, implementation = get_declaration_and_implementation(
+        element, text_lines
+    )
     tree = {
         "type": element.type,
         "name": element.name,
-        "declaration": ''.join(declaration),
+        "declaration": "".join(declaration),
         "children": [text_to_tree(sub, text_lines) for sub in element.sub_elements],
-        "implementation": ''.join(implementation)
+        "implementation": "".join(implementation),
     }
     return tree
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
