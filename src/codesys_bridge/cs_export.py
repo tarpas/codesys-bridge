@@ -288,6 +288,39 @@ def get_declaration_and_implementation(element, text_lines):
     return declaration, implementation
 
 
+def get_element_type(declaration_text):
+    """Extract the element type from declaration text using regex."""
+    element_pattern = re.compile(
+        r"""
+        # Comments and strings to ignore (non-capturing)
+        (?:
+            \(\*.*?\*\)  # Multiline comments
+            |
+            //[^\n]*     # Single line comments
+            |
+            "(?:[^"$]|\$")*(?<![$])"      # Double quoted strings with escaped quotes
+            |
+            '(?:[^'$]|\$')*(?<![$])'      # Single quoted strings with escaped quotes
+        )
+        |
+        # Opening elements with names
+        \b(?P<named_element>FUNCTION_BLOCK|FUNCTION|INTERFACE|PROGRAM|TYPE|METHOD|ACTION)\s+(?P<name>\w+)\b
+        |
+        # Opening elements without names
+        \b(?P<var_section>VAR_GLOBAL|VAR_INPUT|VAR_OUTPUT|VAR_TEMP|VAR_IN_OUT|VAR)\b
+    """,
+        re.VERBOSE | re.IGNORECASE | re.MULTILINE | re.DOTALL,
+    )
+    
+    match = element_pattern.search(declaration_text)
+    if match:
+        if match.group("named_element"):
+            return match.group("named_element").upper()
+        elif match.group("var_section"):
+            return match.group("var_section").upper()
+    return None
+
+
 def metree_dumps(element):
     """
     Convert a MockMETreeElement tree to its text representation.
@@ -309,7 +342,11 @@ def metree_dumps(element):
         result.append(element.textual_implementation.text)
         if not(result[-1].endswith("\n")):
             result[-1] += "\n"
-        result.append("END_POU\n")
+        
+        if element.has_textual_declaration:
+            element_type = get_element_type(element.textual_declaration.text)
+            if element_type:
+                result.append("END_{}\n".format(element_type))
     return "".join(result)
 
 
