@@ -1,33 +1,96 @@
-# CodeSys Bridge Script Installer
+# CodeSys Text Export
 
-This tool installs the CodeSys Bridge Script into SE Machine Expert installs and into CodeSys installs.
+This tool exports Structured Text (ST) source code from a CodeSys/Machine Expert project with these key features:
+
+1. Creates a directory structure matching the project structure
+2. Each ST element (Programs, Function Blocks, Functions, etc.) gets exported to `.st` files
+3. For Function Blocks and Interfaces, all their sub-elements (methods, actions, properties) are kept together in the same file
+
+For example, a Function Block called `FB_Motor` with methods and actions would be exported to a single `FB_Motor.st` file like this:
+
+```
+FUNCTION_BLOCK FB_Motor
+VAR_INPUT
+    Enable : BOOL;
+    Speed : REAL;
+END_VAR
+
+VAR
+    isRunning : BOOL;
+    currentSpeed : REAL;
+END_VAR
+
+    METHOD Start
+    VAR_INPUT
+        acceleration : REAL;
+    END_VAR
+        isRunning := TRUE;
+        currentSpeed := Speed * acceleration;
+    END_METHOD
+
+    METHOD Stop
+        isRunning := FALSE;
+        currentSpeed := 0;
+    END_METHOD
+
+    ACTION Update
+        IF isRunning THEN
+            // Update motor logic
+            currentSpeed := Speed;
+        END_IF
+    END_ACTION
+
+END_FUNCTION_BLOCK
+```
 
 ## Installation
 
-1. Run `codesys_script_install.py` with administrator privileges
-   - The script will automatically request elevation if needed
+1. If your Windows doesn't have python3.9 or higher installed, install it from Microsoft Store/[python.org](https://python.org) or any other source.
+
+2. Open Command Prompt or PowerShell as administrator
+   - Right-click on Command Prompt/PowerShell and select "Run as administrator"
    - Windows UAC prompt will appear for confirmation
 
-2. The installer will:
-   - Install into the CodeSys Script Commands directory
-   - Automatically detect all installed SE Machine Expert V2.x versions
+3. Install the CodeSys Bridge package:
+   ```
+   pip install codesys-bridge
+   ```
 
-   - Copy required assets (icons)
-   - Create or update the configuration files
+4. Run the bridge installation:
+   ```
+   codesys-bridge
+   ```
+
+The installer will:
+- Install into the CodeSys Script Commands directory
+- Automatically detect all installed SE Machine Expert V2.x versions
+- Create or update the configuration files
 
 ## What Gets Installed
 
 The installer adds the following to each installation:
-- `git.ico` - Icon file for the script command
 - Updates to `config.json` - Adds or updates the CodeSys Bridge Script entry
-- Reference to `codesys_bridge_script.py` - The main bridge script
+- Reference to `cs_export.py` - The main bridge script
+
+
+## Surfacing icon for Text Export
+After that you should look for the new icon and add to your toolbar.
+
+![image](pngs/step1.png)
+
+![image](pngs/step2.png)
+
+![image](pngs/step3.png)
+
+
+
 
 ## Requirements
 
 - Windows operating system
+- Python 3.8 or higher
 - Administrator privileges (for SE Machine Expert installations)
 - EcoStruxure Machine Expert V2.x and/or CodeSys 3.5.x installed
-
 
 ## Notes
 
