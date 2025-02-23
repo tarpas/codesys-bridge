@@ -76,11 +76,11 @@ The installer adds the following to each installation:
 ## Surfacing icon for Text Export
 After that you should look for the new icon and add to your toolbar.
 
-![image](https://github.com/tarpas/codesys-bridge/blob/main/pngs/step1.png)
+![image](https://raw.githubusercontent.com/tarpas/codesys-bridge/refs/heads/main/pngs/step1.png)
 
-![image](https://github.com/tarpas/codesys-bridge/blob/main/pngs/step2.png)
+![image](https://raw.githubusercontent.com/tarpas/codesys-bridge/refs/heads/main/pngs/step2.png)
 
-![image](https://github.com/tarpas/codesys-bridge/blob/main/pngs/step3.png)
+![image](https://raw.githubusercontent.com/tarpas/codesys-bridge/refs/heads/main/pngs/step3.png)
 
 
 
