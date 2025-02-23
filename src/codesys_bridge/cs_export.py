@@ -467,16 +467,16 @@ def create_mock_me_tree(element_tree, text_lines, deindent_level=0):
 
 
 if __name__ == "__main__":
-    print("Export started.")
-
     # Get project path and set save folder to st_source subdirectory
     project_path = projects.primary.path
     parent_dir = os.path.dirname(os.path.dirname(project_path))  # Go up one more level
     save_folder = os.path.join(
         parent_dir,
-        os.path.splitext(os.path.basename(project_path))[0] + "_git",
+        os.path.splitext(os.path.basename(project_path))[0] + "_txt",
         "st_source",
     )
+    print("Export to {} started.".format(save_folder))
+
 
     if not os.path.exists(save_folder):
         os.makedirs(save_folder)
