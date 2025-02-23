@@ -3,6 +3,7 @@ recursive-include src *
 
 # Exclude the scriptengine directory
 prune src/codesys_bridge/scriptengine
+prune src/codesys_bridge/.ruff_cache
 
 # Include documentation files
 include README.md
