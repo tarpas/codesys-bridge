@@ -79,8 +79,8 @@ def copy_to_script_commands():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
     toolbar_export_entry = {
-        "Name": "CodeSys Bridge Script",
-        "Desc": "CodeSys Bridge Script",
+        "Name": "Text Export",
+        "Desc": "CodeSys Bridge: Text Export",
         "Icon": "export_icon.ico",
         "Path": ""  # Will be set in install_to_directory
     }
@@ -95,19 +95,20 @@ def copy_to_script_commands():
         return
     
     for directory in directories:
-        install_to_directory(directory, toolbar_export_entry.copy(), current_dir, just_link=sys.argv[1] == "link")
+        install_to_directory(directory, toolbar_export_entry.copy(), current_dir, just_link=len(sys.argv) > 1 and sys.argv[1] == "link")
 
 def main():
     if not is_admin():
         # ShellExecuteW returns an HINSTANCE (int) > 32 if successful
         print("Running {} as admin".format(sys.argv[0]))
-        result = ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.argv[0], " ".join(sys.argv [1:]), None, 1)
+        args = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else ""
+        result = ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.argv[0], args, None, 1)
         if result <= 32:  # Error codes are <= 32
             error_messages = {
-                2: "File not found",
+                2: "File not found", 
                 5: "Access denied",
             }
-            error_msg = error_messages.get(result, f"Ereror code ({result})")
+            error_msg = error_messages.get(result, f"Error code ({result})")
             print(f"Failed to run {sys.argv[0]}: {error_msg}")
             sys.exit(1)
         sys.exit(0)
