@@ -79,7 +79,7 @@ The installer adds the following to each installation:
 ## Surfacing icon for Text Export
 After that you should look for the new icon and add it to your toolbar.
 
-Go to Tools -> Customize -> 
+Go to Tools -> Customize -> Add Command -> ScriptEngine Commands -> Text Export
 
 ![image](https://raw.githubusercontent.com/tarpas/codesys-bridge/refs/heads/main/pngs/step1.png)
 
@@ -93,7 +93,7 @@ Go to Tools -> Customize ->
 ## Requirements
 
 - Windows operating system
-- Python 3.8 or higher
+- Python 3.9 or higher
 - Administrator privileges (for SE Machine Expert installations)
 - EcoStruxure Machine Expert V2.x and/or CodeSys 3.5.x installed
 
