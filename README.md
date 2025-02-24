@@ -66,6 +66,9 @@ The installer will:
 - Automatically detect all installed SE Machine Expert V2.x versions
 - Create or update the configuration files
 
+You have to restart CodeSys/ME after installation for the script icon to appear. 
+"Text Export" should become visible in Tools -> Scripting menu.
+
 ## What Gets Installed
 
 The installer adds the following to each installation:
@@ -74,7 +77,9 @@ The installer adds the following to each installation:
 
 
 ## Surfacing icon for Text Export
-After that you should look for the new icon and add to your toolbar.
+After that you should look for the new icon and add it to your toolbar.
+
+Go to Tools -> Customize -> 
 
 ![image](https://raw.githubusercontent.com/tarpas/codesys-bridge/refs/heads/main/pngs/step1.png)
 
