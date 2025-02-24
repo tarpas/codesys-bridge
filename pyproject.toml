@@ -1,6 +1,6 @@
 [project]
 name = "codesys-bridge"
-version = "0.1.3"
+version = "0.1.4a0"
 description = "Bridge utility for CodeSys and SE Machine Expert projects - text export and transformation, version control tools"
 requires-python = ">=3.9"
 dependencies = []

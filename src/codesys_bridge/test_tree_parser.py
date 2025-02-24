@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, unicode_literals
 import unittest
-from cs_export import (
-    MockMETreeElement,
+from codesys_bridge.cs_export import (
     merge_var_sections,
     parse_iec_element,
     get_declaration_and_implementation,
-    create_mock_me_tree,
+    create_mock_cs_script_object,
     metree_dumps,
     get_element_type,
 )
@@ -391,13 +390,13 @@ x := 3;
         element = parse_iec_element(self.original_file_input)
         transformed_element = merge_var_sections(element)
         text_lines = self.original_file_input.splitlines(True)
-        mocked_tree = create_mock_me_tree(transformed_element, text_lines)
+        mocked_tree = create_mock_cs_script_object(transformed_element, text_lines)
 
     def test_tree_to_text(self):
         element = parse_iec_element(self.original_file_input)
         transformed_element = merge_var_sections(element)
         text_lines = self.original_file_input.splitlines(True)
-        mocked_tree = create_mock_me_tree(transformed_element, text_lines)
+        mocked_tree = create_mock_cs_script_object(transformed_element, text_lines)
         self.assertEqual(metree_dumps(mocked_tree), self.original_file_input)
 
 

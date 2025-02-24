@@ -66,6 +66,17 @@ def walk_export_tree(treeobj, depth, path):
         exports = [treeobj]
         projects.primary.export_native(exports, os.path.join(curpath, name + ".xml"))
 
+    elif treeobj.is_task:
+        exports = [treeobj]
+        projects.primary.export_native(exports, os.path.join(curpath, name + "_task.xml"))
+
+    elif treeobj.is_libman:
+        exports = [treeobj]
+        projects.primary.export_native(exports, os.path.join(curpath, name + "_lib.xml"))
+
+    elif treeobj.is_textlist:
+        treeobj.export(os.path.join(curpath, name + ".tl"))
+
     if treeobj.has_textual_declaration:
         a = treeobj.textual_declaration
         text_representation = text_representation + a.text
@@ -74,21 +85,10 @@ def walk_export_tree(treeobj, depth, path):
         a = treeobj.textual_implementation
         text_representation = text_representation + a.text
 
-    if treeobj.is_task:
-        exports = [treeobj]
-        projects.primary.export_native(exports, os.path.join(curpath, name + ".task"))
-
-    if treeobj.is_libman:
-        exports = [treeobj]
-        projects.primary.export_native(exports, os.path.join(curpath, name + ".lib"))
-
-    if treeobj.is_textlist:
-        treeobj.export(os.path.join(curpath, name + ".tl"))
 
     children = treeobj.get_children(False)
 
     if object_type in  {"pou", "gvl", "dut", "itf"}:
-        print("Calling save for {} {} {} ".format(object_type, curpath, name))
         save(metree_dumps(treeobj), curpath, name)
 
     elif children:
@@ -99,8 +99,6 @@ def walk_export_tree(treeobj, depth, path):
 
         if not os.path.exists(curpath):
             os.makedirs(curpath)
-
-    print("Walked {} {} {} ".format(object_type, curpath, name))
 
     if object_type not in  {"pou", "gvl", "dut", "itf"}:
         for child in treeobj.get_children(False):
@@ -115,6 +113,7 @@ LineSegment = namedtuple("LineSegment", ["start_line", "end_line"])
 
 
 class IECElement(object):
+    """Recursive data structure representing an IEC element and its sub-elements"""
     def __init__(self, name, type, start_segment, sub_elements, body_segment):
         self.name = name
         self.type = type  # 'FUNCTION_BLOCK', 'FUNCTION', 'INTERFACE', 'PROGRAM', 'TYPE', 'VAR_GLOBAL' and inside FUNCTION_BLOCK: 'METHOD', 'ACTION', 'VAR_INPUT', 'VAR_OUTPUT', 'VAR_IN_OUT', 'VAR_TEMP'
@@ -123,7 +122,7 @@ class IECElement(object):
             if isinstance(start_segment, tuple)
             else start_segment
         )
-        self.sub_elements = sub_elements  # list of IECElements
+        self.sub_elements = sub_elements  # list of subordinated IECElements
         self.body_segment = (
             LineSegment(*body_segment)
             if isinstance(body_segment, tuple)
@@ -372,20 +371,11 @@ class MockScriptTextDocument(object):
         self.text = new_text
 
 
-class MockMETreeElement(object):
+class MockScriptObject(object):
+    """Has minimal necessary attributes and methods to be used interchangably with CodeSys Script Object"""
     def __init__(
         self, element_type, element_name, declaration, implementation, text_lines
     ):
-        """
-        Create a new MockMETreeElement.
-
-        Args:
-            element_type (str): The type of the element
-            element_name (str): The name of the element
-            declaration (list[str]): The declaration text lines
-            implementation (list[str]): The implementation text lines
-            text_lines (list[str]): The original text lines
-        """
         self.lines_list = text_lines
         self.type = element_type
         self.name = element_name
@@ -438,7 +428,7 @@ def merge_var_sections(element):
     )
 
 
-def create_mock_me_tree(element_tree, text_lines, deindent_level=0):
+def create_mock_cs_script_object(element_tree, text_lines, deindent_level=0):
     """
     Create a MockMETreeElement from an IECElement and text lines.
 
@@ -452,7 +442,7 @@ def create_mock_me_tree(element_tree, text_lines, deindent_level=0):
     declaration, implementation = get_declaration_and_implementation(
         element_tree, text_lines, deindent_level
     )
-    mock_element = MockMETreeElement(
+    mock_element = MockScriptObject(
         element_type=element_tree.type,
         element_name=element_tree.name,
         declaration=declaration,
@@ -461,7 +451,7 @@ def create_mock_me_tree(element_tree, text_lines, deindent_level=0):
     )
 
     for child in element_tree.sub_elements:
-        mock_element.children.append(create_mock_me_tree(child, text_lines, deindent_level + 1))
+        mock_element.children.append(create_mock_cs_script_object(child, text_lines, deindent_level + 1))
 
     return mock_element
 
