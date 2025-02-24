@@ -6,7 +6,7 @@ from codesys_bridge.cs_export import (
     parse_iec_element,
     get_declaration_and_implementation,
     create_mock_cs_script_object,
-    metree_dumps,
+    cs_tree_dumps,
     get_element_type,
 )
 import difflib
@@ -397,7 +397,7 @@ x := 3;
         transformed_element = merge_var_sections(element)
         text_lines = self.original_file_input.splitlines(True)
         mocked_tree = create_mock_cs_script_object(transformed_element, text_lines)
-        self.assertEqual(metree_dumps(mocked_tree), self.original_file_input)
+        self.assertEqual(cs_tree_dumps(mocked_tree), self.original_file_input)
 
 
 def text_to_tree(element, text_lines):

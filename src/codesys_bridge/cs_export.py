@@ -48,11 +48,15 @@ def save(text, path, name):
 
 
 def walk_export_tree(treeobj, depth, path):
+    # TODO: it should ba possible to streamline this function
+    # to decide on the type_guid (mapped to intuitive object_type)
+    # and do native_export, this or that special_export 
+    # independently of that we'll have a simple condition to create
+    # a subdirectory and walk down.
     global unknown_object_types
     curpath = path
 
     text_representation = ""
-    object_type = ""
 
     name = treeobj.get_name(False)
     type_guid = treeobj.type.ToString()
@@ -60,6 +64,7 @@ def walk_export_tree(treeobj, depth, path):
     if type_guid in guid_type:
         object_type = guid_type[type_guid]
     else:
+        object_type = "unknown"
         unknown_object_types[type_guid].append(name)
 
     if treeobj.is_device:
@@ -68,7 +73,7 @@ def walk_export_tree(treeobj, depth, path):
 
     elif treeobj.is_task:
         exports = [treeobj]
-        projects.primary.export_native(exports, os.path.join(curpath, name + "_task.xml"))
+        projects.primary.export_native(exports, os.path.join(curpath, name + "_task.xml"), recursive=True)
 
     elif treeobj.is_libman:
         exports = [treeobj]
@@ -85,24 +90,23 @@ def walk_export_tree(treeobj, depth, path):
         a = treeobj.textual_implementation
         text_representation = text_representation + a.text
 
-
     children = treeobj.get_children(False)
 
-    if object_type in  {"pou", "gvl", "dut", "itf"}:
-        save(metree_dumps(treeobj), curpath, name)
+    if object_type in  {"pou", "gvl", "dut", "itf",}:
+        save(cs_tree_dumps(treeobj), curpath, name)
 
-    elif children:
-        if object_type == "folder":
-            curpath = os.path.join(curpath, name)
-        else:
-            curpath = os.path.join(curpath, name + "." + object_type)            
+    else:
+        if children:
+            if object_type in {"folder", "application","unknown"}:
+                curpath = os.path.join(curpath, name)
+            else:
+                curpath = os.path.join(curpath, name + "." + object_type)
 
-        if not os.path.exists(curpath):
-            os.makedirs(curpath)
+            if object_type != "task" and not os.path.exists(curpath):
+                os.makedirs(curpath)
 
-    if object_type not in  {"pou", "gvl", "dut", "itf"}:
         for child in treeobj.get_children(False):
-            walk_export_tree(child, depth + 1, curpath)
+            walk_export_tree(child, depth + 1, os.path.join(curpath))
 
 
 # Named tuples for structured data
@@ -336,7 +340,7 @@ def indent_lines(text, indent_level):
     return "\n".join(indented) + "\n"
 
 
-def metree_dumps(element, indent_level=0):
+def cs_tree_dumps(element, indent_level=0):
     """
     Convert a MockMETreeElement tree to its text representation and return as string.
     """
@@ -347,7 +351,7 @@ def metree_dumps(element, indent_level=0):
     for child in element.get_children():
         if result and result[-1] != "\n":
             result.append("\n")
-        child_text = metree_dumps(child, indent_level + 1)
+        child_text = cs_tree_dumps(child, indent_level + 1)
         result.append(child_text)
     
     if element.has_textual_implementation:
@@ -500,7 +504,9 @@ if __name__ == "__main__":
         "f8a58466-d7f6-439f-bbb8-d4600e41d099": "m",  # method with ret
         "261bd6e6-249c-4232-bb6f-84c2fbeef430": "gvl",  # gvl_Persistent
         "98a2708a-9b18-4f31-82ed-a1465b24fa2d": "task",
+        "413e2a7d-adb1-4d2c-be29-6ae6e4fab820": "task_pou",
         "c3fc9989-e24b-4002-a2c7-827a0a2595f4": "implicit",
+        '639b491f-5557-464c-af91-1471bac9f549': "application",
     }
 
     for obj in projects.primary.get_children():
