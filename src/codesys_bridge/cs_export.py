@@ -351,16 +351,17 @@ def cs_tree_dumps(element, indent_level=0):
     result = []
     if element.has_textual_declaration:
         result.append(indent_lines(element.textual_declaration.text, indent_level))
+        if result and not result[-1][-1]=='\n':
+            result.append("\n")
+    if element.has_textual_implementation or element.get_children():
+        result.append("\n")
     
     for child in element.get_children():
-        if result and result[-1] != "\n":
-            result.append("\n")
         child_text = cs_tree_dumps(child, indent_level + 1)
         result.append(child_text)
+        result.append("\n")
     
     if element.has_textual_implementation:
-        if result and result[-1] != "\n":
-            result.append("\n")
         # Implementation is indented one more level than the declaration
         result.append(indent_lines(element.textual_implementation.text, indent_level + 1))
         
