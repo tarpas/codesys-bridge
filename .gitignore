@@ -6,3 +6,4 @@ build
 .idea
 project_samples
 src/codesys_bridge/scriptengine
+.NOTES.md
