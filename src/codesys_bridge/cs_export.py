@@ -117,7 +117,7 @@ LineSegment = namedtuple("LineSegment", ["start_line", "end_line"])
 
 
 class IECElement(object):
-    """Recursive data structure representing an IEC element and its sub-elements"""
+    """Recursive data structure representing an IEC element and its sub-elements. It doesn't hold source code, only line numbers."""
     def __init__(self, name, type, start_segment, sub_elements, body_segment):
         self.name = name
         self.type = type  # 'FUNCTION_BLOCK', 'FUNCTION', 'INTERFACE', 'PROGRAM', 'TYPE', 'VAR_GLOBAL' and inside FUNCTION_BLOCK: 'METHOD', 'ACTION', 'VAR_INPUT', 'VAR_OUTPUT', 'VAR_IN_OUT', 'VAR_TEMP'
@@ -215,8 +215,9 @@ def find_element_delimiters(text, newline_positions):
 def build_element_tree(delimiters, start_idx=0):
     """
     Recursively build an IEC element tree from element delimiters.
-    Returns (IECElement, next_idx) tuple.
-    """
+    start_idx is the index of the delimiter to start parsing from.
+    Returns (IECElement, next_idx) tuple. next_idx  
+            """
     if start_idx >= len(delimiters):
         return None, start_idx
 
@@ -230,17 +231,20 @@ def build_element_tree(delimiters, start_idx=0):
     end_type = (
         "END_VAR" if delimiter.type.startswith("VAR_") else "END_" + delimiter.type
     )
-    end_idx = start_idx + 1
+    current_idx = start_idx + 1
     sub_elements = []
 
-    while end_idx < len(delimiters):
-        if delimiters[end_idx].type == end_type:
-            break
+    while current_idx < len(delimiters): # search for the matching end_type
+        if delimiters[current_idx].type == end_type:
+            break # found the matching END element, "go to" end of build_element_tree
 
-        sub_element, new_idx = build_element_tree(delimiters, end_idx)
-        if sub_element:
-            sub_elements.append(sub_element)
-        end_idx = new_idx
+        # if the current delimiter is not an END element, it has to be sub element
+        sub_element, previous_end_idx = build_element_tree(delimiters, current_idx)
+        current_idx = previous_end_idx + 1
+        assert(sub_element)
+        sub_elements.append(sub_element)
+
+    end_idx = current_idx
 
     if end_idx >= len(delimiters):
         raise ValueError("No matching %s found for %s" % (end_type, delimiter.type))
@@ -257,7 +261,7 @@ def build_element_tree(delimiters, start_idx=0):
             else delimiter.end_line + 1,
             delimiters[end_idx].end_line,  # End at the end of END_* marker line
         ),
-    ), end_idx + 1
+    ), end_idx
 
 
 def parse_iec_element(text):
