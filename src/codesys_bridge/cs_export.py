@@ -344,9 +344,15 @@ def indent_lines(text, indent_level):
     return "\n".join(indented) + "\n"
 
 
+def get_object_type(script_object):
+    if hasattr(script_object, "__mocked__"):
+        return script_object.type
+    else:
+        return guid_type[script_object.type.ToString()]
+
 def cs_tree_dumps(element, indent_level=0):
     """
-    Convert a MockMETreeElement tree to its text representation and return as string.
+    Convert a ScriptObject or MockScriptObject tree to its text representation and return as string.
     """
     result = []
     if element.has_textual_declaration:
@@ -357,8 +363,12 @@ def cs_tree_dumps(element, indent_level=0):
         result.append("\n")
     
     for child in element.get_children():
+        if get_object_type(child) == "ACTION":
+            result.append("    " * (indent_level + 1) + "ACTION {}\n".format(child.get_name()))
         child_text = cs_tree_dumps(child, indent_level + 1)
         result.append(child_text)
+        if get_object_type(child) == "ACTION":
+            result.append("    " * (indent_level + 1) + "END_ACTION\n")
         result.append("\n")
     
     if element.has_textual_implementation:
@@ -382,6 +392,9 @@ class MockScriptTextDocument(object):
 
 class MockScriptObject(object):
     """Has minimal necessary attributes and methods to be used interchangably with CodeSys Script Object"""
+
+    __mocked__ = True
+
     def __init__(
         self, element_type, element_name, declaration, implementation, text_lines
     ):
@@ -464,6 +477,29 @@ def create_mock_cs_script_object(element_tree, text_lines, deindent_level=0):
 
     return mock_element
 
+guid_type = {
+    "792f2eb6-721e-4e64-ba20-bc98351056db": "pm",  # property method
+    "2db5746d-d284-4425-9f7f-2663a34b0ebc": "dut",  # dut
+    "adb5cb65-8e1d-4a00-b70a-375ea27582f3": "lib",  # lib manager
+    "f89f7675-27f1-46b3-8abb-b7da8e774ffd": "m",  # method no ret
+    "8ac092e5-3128-4e26-9e7e-11016c6684f2": "ACTION",  # action
+    "6f9dac99-8de1-4efc-8465-68ac443b7d08": "pou",  # pou
+    "6654496c-404d-479a-aad2-8551054e5f1e": "itf",  # interface
+    "738bea1e-99bb-4f04-90bb-a7a567e74e3a": "folder",  # folder
+    "ffbfa93a-b94d-45fc-a329-229860183b1d": "gvl",  # global var
+    "5a3b8626-d3e9-4f37-98b5-66420063d91e": "prop",  # property
+    "2bef0454-1bd3-412a-ac2c-af0f31dbc40f": "tl",  # textlist
+    "63784cbb-9ba0-45e6-9d69-babf3f040511": "gtl",  # global textlist
+    "225bfe47-7336-4dbc-9419-4105a7c831fa": "dev",  # device
+    "ae1de277-a207-4a28-9efb-456c06bd52f3": "tc",  # task configuration
+    "f8a58466-d7f6-439f-bbb8-d4600e41d099": "m",  # method with ret
+    "261bd6e6-249c-4232-bb6f-84c2fbeef430": "gvl",  # gvl_Persistent
+    "98a2708a-9b18-4f31-82ed-a1465b24fa2d": "task",
+    "413e2a7d-adb1-4d2c-be29-6ae6e4fab820": "task_pou",
+    "c3fc9989-e24b-4002-a2c7-827a0a2595f4": "implicit",
+    '639b491f-5557-464c-af91-1471bac9f549': "application",
+}
+
 
 if __name__ == "__main__":
     # Get project path and set save folder to st_source subdirectory
@@ -491,28 +527,6 @@ if __name__ == "__main__":
 
     unknown_object_types = defaultdict(lambda: [])
 
-    guid_type = {
-        "792f2eb6-721e-4e64-ba20-bc98351056db": "pm",  # property method
-        "2db5746d-d284-4425-9f7f-2663a34b0ebc": "dut",  # dut
-        "adb5cb65-8e1d-4a00-b70a-375ea27582f3": "lib",  # lib manager
-        "f89f7675-27f1-46b3-8abb-b7da8e774ffd": "m",  # method no ret
-        "8ac092e5-3128-4e26-9e7e-11016c6684f2": "act",  # action
-        "6f9dac99-8de1-4efc-8465-68ac443b7d08": "pou",  # pou
-        "6654496c-404d-479a-aad2-8551054e5f1e": "itf",  # interface
-        "738bea1e-99bb-4f04-90bb-a7a567e74e3a": "folder",  # folder
-        "ffbfa93a-b94d-45fc-a329-229860183b1d": "gvl",  # global var
-        "5a3b8626-d3e9-4f37-98b5-66420063d91e": "prop",  # property
-        "2bef0454-1bd3-412a-ac2c-af0f31dbc40f": "tl",  # textlist
-        "63784cbb-9ba0-45e6-9d69-babf3f040511": "gtl",  # global textlist
-        "225bfe47-7336-4dbc-9419-4105a7c831fa": "dev",  # device
-        "ae1de277-a207-4a28-9efb-456c06bd52f3": "tc",  # task configuration
-        "f8a58466-d7f6-439f-bbb8-d4600e41d099": "m",  # method with ret
-        "261bd6e6-249c-4232-bb6f-84c2fbeef430": "gvl",  # gvl_Persistent
-        "98a2708a-9b18-4f31-82ed-a1465b24fa2d": "task",
-        "413e2a7d-adb1-4d2c-be29-6ae6e4fab820": "task_pou",
-        "c3fc9989-e24b-4002-a2c7-827a0a2595f4": "implicit",
-        '639b491f-5557-464c-af91-1471bac9f549': "application",
-    }
 
     for obj in projects.primary.get_children():
         walk_export_tree(obj, 0, save_folder)
