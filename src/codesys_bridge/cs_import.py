@@ -112,13 +112,7 @@ def create_object(project, object_type, name, content=None):
         return project.create_gvl(name)
     
     elif object_type == "dut":
-        # Determine DUT type from content
-        dut_type = "Structure"  # Default
-        if content:
-            element_type = get_element_type(content)
-            if element_type in DUT_TYPE_MAPPING:
-                dut_type = DUT_TYPE_MAPPING[element_type]
-        return project.create_dut(name, getattr(DutType, dut_type))
+        return project.create_dut(name)
     
     elif object_type == "itf":
         return project.create_interface(name)
