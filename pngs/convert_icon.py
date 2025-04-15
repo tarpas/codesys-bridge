@@ -16,8 +16,8 @@ if __name__ == '__main__':
     workspace_dir = os.getcwd()
     
     # Define input and output paths
-    input_path = os.path.join(workspace_dir, 'export_icon.png')
-    output_path = os.path.join(workspace_dir, 'export_icon.ico')
+    input_path = os.path.join(workspace_dir, 'export.png')
+    output_path = os.path.join(workspace_dir, 'txt_export.ico')
     
     # Convert the image
     convert_png_to_ico(input_path, output_path)
