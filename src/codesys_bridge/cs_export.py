@@ -363,22 +363,27 @@ def cs_tree_dumps(element, indent_level=0):
         result.append("\n")
     
     for child in element.get_children():
-        if get_object_type(child) == "ACTION":
-            result.append("    " * (indent_level + 1) + "ACTION {}\n".format(child.get_name()))
         child_text = cs_tree_dumps(child, indent_level + 1)
         result.append(child_text)
-        if get_object_type(child) == "ACTION":
-            result.append("    " * (indent_level + 1) + "END_ACTION\n")
         result.append("\n")
+    if element.get_children():
+        result=result[:-1]
     
     if element.has_textual_implementation:
+        object_type = get_object_type(element)
+        if object_type in {"ACTION", "TRANSITION"}:
+            result.append("    " * indent_level + "{} {}\n".format(object_type, element.get_name()))
+
         # Implementation is indented one more level than the declaration
         result.append(indent_lines(element.textual_implementation.text, indent_level + 1))
-        
+                    
         if element.has_textual_declaration:
-            element_type = get_element_type(element.textual_declaration.text)
-            if element_type:
-                result.append("    " * indent_level + "END_{}\n".format(element_type))
+            ending = get_element_type(element.textual_declaration.text)
+        elif object_type:
+            ending = object_type
+        if ending:
+            result.append("    " * indent_level + "END_{}\n".format(ending))
+
     return "".join(result)
 
 
@@ -537,3 +542,43 @@ if __name__ == "__main__":
         unknown_ot_file.write(str(dict(unknown_object_types)))
 
     print("Export finished.")
+
+""""
+Markdown, let's work on a table of element types etc.
+
+
+Keyword/type: Keywords uppercase, types
+
+|  Keyword         |  Create Method1    |  Create Argument         |   GUID                                   |  Comment                                             |
+| ---------------- | ------------------ | ------------------------ | ---------------------------------------- | ---------------------------------------------------- |
+| FUNCTION_BLOCK   |  create_pou        |  PouType.FUNCTION_BLOCK  | "6f9dac99-8de1-4efc-8465-68ac443b7d08"   |  #create pou                                         |
+| FUNCTION         |  create_pou        |  PouType.FUNCTION        | "6f9dac99-8de1-4efc-8465-68ac443b7d08"   |  #create pou                                         |
+| PROGRAM          |  create_pou        |  PouType.Program         | "6f9dac99-8de1-4efc-8465-68ac443b7d08"   |  #create pou                                         |
+| INTERFACE        |  create_interface  |  None                    | "6654496c-404d-479a-aad2-8551054e5f1e"   |  #create interface                                   |
+| METHOD           |  create_method     |  "no_return_type"        | "f89f7675-27f1-46b3-8abb-b7da8e774ffd"   |  # 2 METHOD types, mostly same, but different GUIDs  |
+| METHOD           |  create_method     |  "return_type"           | "f8a58466-d7f6-439f-bbb8-d4600e41d099"   |  # 2 METHOD types, mostly same, but different GUIDs  |
+| ACTION           |  create_action     |  None                    | "8ac092e5-3128-4e26-9e7e-11016c6684f2"   |   # create_action                                    |
+| PROPERTY         |  create_property   |  None                    | "5a3b8626-d3e9-4f37-98b5-66420063d91e"   |   # create_property                                  |
+| VAR_GLOBAL       |  create_gvl        |  None                    | "ffbfa93a-b94d-45fc-a329-229860183b1d"   |   # create_gvl                                       |
+| STRUCT           |  create_dut        |  DutType.Struct          | "2db5746d-d284-4425-9f7f-2663a34b0ebc"   |   # create_dut                                       |
+| UNION            |  create_dut        |  DutType.Union           | "2db5746d-d284-4425-9f7f-2663a34b0ebc"   |   # create_dut                                       |
+| ENUM             |  create_dut        |  DutType.Enum            | "2db5746d-d284-4425-9f7f-2663a34b0ebc"   |   # create_dut                                       |
+| tl               |  add_textlist      |  None                    | "2bef0454-1bd3-412a-ac2c-af0f31dbc40f"   |   # add_textlist                                     |
+| gtl              |  add_textlist      |  None                    | 63784cbb-9ba0-45e6-9d69-babf3f040511     |   # add_textlist                                     |
+| device           | import_native      |  None                    | 225bfe47-7336-4dbc-9419-4105a7c831fa     |   # device                                           |
+| application      | import_native      |                          |                                          |                                                      |
+| trace            | import_native      |                          |                                          |                                                      |
+|                  |                    |                          |                                          |                                                      |
+|                  |                    |                          |                                          |                                                      |
+|                  |                    |                          |                                          |                                                      |
+|                  |                    |                          |                                          |                                                      |
+
+
+
+
+
+
+
+
+
+"""

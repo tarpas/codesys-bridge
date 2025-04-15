@@ -1,0 +1,14 @@
+type, guid, comment
+dut, 2db5746d-d284-4425-9f7f-2663a34b0ebc, declaration has dut type
+gvl, ffbfa93a-b94d-45fc-a329-229860183b1d,
+gvl persistent, 261bd6e6-249c-4232-bb6f-84c2fbeef430,
+interface, 6654496c-404d-479a-aad2-8551054e5f1e, dump has to END
+pou, 6f9dac99-8de1-4efc-8465-68ac443b7d08, dump has to END
+method without return, f89f7675-27f1-46b3-8abb-b7da8e774ffd, type via DECLARATION text or GUID; dump has to END
+method with return, f8a58466-d7f6-439f-bbb8-d4600e41d099, type via declaration text or GUID; dump has to END
+property, 5a3b8626-d3e9-4f37-98b5-66420063d91e, declaration DOES have "Property"; dump has to end,
+action, 8ac092e5-3128-4e26-9e7e-11016c6684f2, type only via GUID; dump has to start; dump has to end
+transition, 2bef0454-1bd3-412a-ac2c-af0f31dbc40f, type only via GUID; dump has to start; dump has to end
+
+
+
